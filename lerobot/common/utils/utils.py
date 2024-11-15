@@ -199,7 +199,7 @@ def say(text, blocking=False):
         if not blocking:
             cmd += " &"
     elif platform.system() == "Linux":
-        cmd = f'spd-say "{text}"'
+        cmd = f'spd-say -l zh-CN -y cmn-latn-pinyin "{text}"'
         if blocking:
             cmd += "  --wait"
     elif platform.system() == "Windows":

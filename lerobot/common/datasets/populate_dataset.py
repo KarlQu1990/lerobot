@@ -196,6 +196,8 @@ def init_dataset(
 
     videos_dir = local_dir / "videos"
     videos_dir.mkdir(parents=True, exist_ok=True)
+    print(f"episodes_dir: {episodes_dir}")
+    print(f"videos_dir: {videos_dir}")
 
     # Logic to resume data recording
     rec_info_path = episodes_dir / "data_recording_info.json"
@@ -344,7 +346,7 @@ def save_current_episode(dataset):
 
 
 def encode_videos(dataset, image_keys, play_sounds):
-    log_say("Encoding videos", play_sounds)
+    log_say("编码视频", play_sounds)
 
     num_episodes = dataset["num_episodes"]
     videos_dir = dataset["videos_dir"]
@@ -368,7 +370,7 @@ def encode_videos(dataset, image_keys, play_sounds):
 
 
 def from_dataset_to_lerobot_dataset(dataset, play_sounds):
-    log_say("Consolidate episodes", play_sounds)
+    log_say("合成视频", play_sounds)
 
     num_episodes = dataset["num_episodes"]
     episodes_dir = dataset["episodes_dir"]
@@ -454,7 +456,7 @@ def create_lerobot_dataset(dataset, run_compute_stats, push_to_hub, tags, play_s
     lerobot_dataset = from_dataset_to_lerobot_dataset(dataset, play_sounds)
 
     if run_compute_stats:
-        log_say("Computing dataset statistics", play_sounds)
+        log_say("计算数据集统计量", play_sounds)
         lerobot_dataset.stats = compute_stats(lerobot_dataset)
     else:
         logging.info("Skipping computation of the dataset statistics")

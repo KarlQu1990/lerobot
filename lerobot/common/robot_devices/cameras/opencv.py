@@ -38,6 +38,9 @@ def find_cameras(raise_when_empty=False, max_index_search_range=MAX_OPENCV_INDEX
         possible_ports = [str(port) for port in Path("/dev").glob("video*")]
         ports = _find_cameras(possible_ports, mock=mock)
         for port in ports:
+            if Path(port).is_symlink():
+                continue
+
             cameras.append(
                 {
                     "port": port,
@@ -96,6 +99,9 @@ def is_valid_unix_path(path: str) -> bool:
 
 
 def get_camera_index_from_unix_port(port: Path) -> int:
+    if port.is_symlink():
+        port = Path("/dev") / port.readlink()
+
     return int(str(port.resolve()).removeprefix("/dev/video"))
 
 
@@ -194,6 +200,7 @@ class OpenCVCameraConfig:
     color_mode: str = "rgb"
     rotation: int | None = None
     mock: bool = False
+    pixel_format: str = "YUYV"
 
     def __post_init__(self):
         if self.color_mode not in ["rgb", "bgr"]:
@@ -204,6 +211,8 @@ class OpenCVCameraConfig:
         if self.rotation not in [-90, None, 90, 180]:
             raise ValueError(f"`rotation` must be in [-90, None, 90, 180] (got {self.rotation})")
 
+        if self.pixel_format not in ["YUYV", "MJPG"]:
+            raise ValueError(f"`pixel_format` must be in ['YUYV', 'MJPG'] (got {self.rotation})")
 
 class OpenCVCamera:
     """
@@ -270,6 +279,7 @@ class OpenCVCamera:
         self.height = config.height
         self.color_mode = config.color_mode
         self.mock = config.mock
+        self.pixel_format = config.pixel_format
 
         self.camera = None
         self.is_connected = False
@@ -331,7 +341,8 @@ class OpenCVCamera:
         # Secondly, create the camera that will be used downstream.
         # Note: For some unknown reason, calling `isOpened` blocks the camera which then
         # needs to be re-created.
-        self.camera = cv2.VideoCapture(camera_idx)
+        self.camera = cv2.VideoCapture(camera_idx, cv2.CAP_V4L2)
+        self.camera.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*self.pixel_format))
 
         if self.fps is not None:
             self.camera.set(cv2.CAP_PROP_FPS, self.fps)

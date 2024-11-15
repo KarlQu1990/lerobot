@@ -132,6 +132,15 @@ class Logger:
             logging.info(f"Track this run --> {colored(wandb.run.get_url(), 'yellow', attrs=['bold'])}")
             self._wandb = wandb
 
+        enable_tensorboard = cfg.get("tensorboard", {}).get("enable", False)
+        if not enable_tensorboard:
+            self._tb = None
+        else:
+            from torch.utils.tensorboard import SummaryWriter
+            
+            self._tb = SummaryWriter(str(self.log_dir))
+        
+
     @classmethod
     def get_checkpoints_dir(cls, log_dir: str | Path) -> Path:
         """Given the log directory, get the sub-directory in which checkpoints will be saved."""
@@ -230,14 +239,18 @@ class Logger:
     def log_dict(self, d, step, mode="train"):
         assert mode in {"train", "eval"}
         # TODO(alexander-soare): Add local text log.
-        if self._wandb is not None:
+        if self._wandb or self._tb:
             for k, v in d.items():
                 if not isinstance(v, (int, float, str)):
                     logging.warning(
-                        f'WandB logging of key "{k}" was ignored as its type is not handled by this wrapper.'
+                        f'logging of key "{k}" was ignored as its type is not handled by this wrapper.'
                     )
                     continue
-                self._wandb.log({f"{mode}/{k}": v}, step=step)
+
+                if self._wandb:
+                    self._wandb.log({f"{mode}/{k}": v}, step=step)
+                if self._tb:
+                    self._tb.add_scalar(k, v, step)  
 
     def log_video(self, video_path: str, step: int, mode: str = "train"):
         assert mode in {"train", "eval"}

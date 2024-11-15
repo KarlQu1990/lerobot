@@ -192,7 +192,6 @@ def teleoperate(
         display_cameras=display_cameras,
     )
 
-
 @safe_disconnect
 def record(
     robot: Robot,
@@ -257,7 +256,7 @@ def record(
     # 2. give times to the robot devices to connect and start synchronizing,
     # 3. place the cameras windows on screen
     enable_teleoperation = policy is None
-    log_say("Warmup record", play_sounds)
+    log_say("初始化录制", play_sounds)
     warmup_record(robot, events, enable_teleoperation, warmup_time_s, display_cameras, fps)
 
     if has_method(robot, "teleop_safety_stop"):
@@ -268,7 +267,7 @@ def record(
             break
 
         episode_index = dataset["num_episodes"]
-        log_say(f"Recording episode {episode_index}", play_sounds)
+        log_say(f"录制第{episode_index}个视频", play_sounds)
         record_episode(
             dataset=dataset,
             robot=robot,
@@ -288,11 +287,11 @@ def record(
         if not events["stop_recording"] and (
             (episode_index < num_episodes - 1) or events["rerecord_episode"]
         ):
-            log_say("Reset the environment", play_sounds)
+            log_say("重新布置环境", play_sounds)
             reset_environment(robot, events, reset_time_s)
 
         if events["rerecord_episode"]:
-            log_say("Re-record episode", play_sounds)
+            log_say("重新录制视频", play_sounds)
             events["rerecord_episode"] = False
             events["exit_early"] = False
             delete_current_episode(dataset)
@@ -304,12 +303,12 @@ def record(
         if events["stop_recording"]:
             break
 
-    log_say("Stop recording", play_sounds, blocking=True)
+    log_say("停止录制", play_sounds, blocking=True)
     stop_recording(robot, listener, display_cameras)
 
     lerobot_dataset = create_lerobot_dataset(dataset, run_compute_stats, push_to_hub, tags, play_sounds)
 
-    log_say("Exiting", play_sounds)
+    log_say("录制结束", play_sounds)
     return lerobot_dataset
 
 
@@ -331,7 +330,7 @@ def replay(
     if not robot.is_connected:
         robot.connect()
 
-    log_say("Replaying episode", play_sounds, blocking=True)
+    log_say("播放视频", play_sounds, blocking=True)
     for idx in range(from_idx, to_idx):
         start_episode_t = time.perf_counter()
 
@@ -343,6 +342,61 @@ def replay(
 
         dt_s = time.perf_counter() - start_episode_t
         log_control_info(robot, dt_s, fps=fps)
+
+@safe_disconnect
+def show_position(robot: Robot, **kwargas):
+    leader_pos = robot.leader_arms["main"].read("Present_Position")
+    follower_pos = robot.follower_arms["main"].read("Present_Position")
+    
+    leader_pos_str = ", ".join([map(lambda x: f"{x:.2f}", leader_pos)])
+    follower_pos_str = ", ".join([map(lambda x: f"{x:.2f}", follower_pos)])
+    logging.info(f"主臂关节角: {leader_pos_str}")
+    logging.info(f"从臂关节角: {follower_pos_str}")
+
+@safe_disconnect
+def test_policy(
+    robot: Robot, fps: int | None = None, inference_time_s: int = 60, device: str = "cuda", pretrained_policy_name_or_path: str | None = None
+):
+    import torch
+    from lerobot.common.policies.act.modeling_act import ACTPolicy
+
+    if not pretrained_policy_name_or_path:
+        logging.error("预训练权重不能为空。")
+        return
+
+    if not robot.is_connected:
+        robot.connect()
+
+    policy = ACTPolicy.from_pretrained(pretrained_policy_name_or_path)
+    policy.to(device)
+
+    for _ in range(inference_time_s * fps):
+        start_time = time.perf_counter()
+
+        # Read the follower state and access the frames from the cameras
+        observation = robot.capture_observation()
+
+        # Convert to pytorch format: channel first and float32 in [0,1]
+        # with batch dimension
+        for name in observation:
+            if "image" in name:
+                observation[name] = observation[name].type(torch.float32) / 255
+                observation[name] = observation[name].permute(2, 0, 1).contiguous()
+            observation[name] = observation[name].unsqueeze(0)
+            observation[name] = observation[name].to(device)
+
+        # Compute the next action with the policy
+        # based on the current observation
+        action = policy.select_action(observation)
+        # Remove batch dimension
+        action = action.squeeze(0)
+        # Move to cpu, if not already the case
+        action = action.to("cpu")
+        # Order the robot to move
+        robot.send_action(action)
+
+        dt_s = time.perf_counter() - start_time
+        busy_wait(1 / fps - dt_s)
 
 
 if __name__ == "__main__":
@@ -497,6 +551,32 @@ if __name__ == "__main__":
     )
     parser_replay.add_argument("--episode", type=int, default=0, help="Index of the episode to replay.")
 
+    parser_eval = subparsers.add_parser("test_policy", parents=[base_parser])
+    parser_eval.add_argument(
+        "--fps", type=none_or_int, default=None, help="Frames per second (set to None to disable)"
+    )
+    parser_eval.add_argument(
+        "--inference-time-s",
+        type=int,
+        default=60,
+        help="inference time in seconds.",
+    )
+    parser_eval.add_argument(
+        "--device",
+        type=str,
+        default="cuda",
+        help="inference time in seconds.",
+    )
+    parser_eval.add_argument(
+        "-p",
+        "--pretrained-policy-name-or-path",
+        type=str,
+        help=(
+            "Either the repo ID of a model hosted on the Hub or a path to a directory containing weights "
+            "saved using `Policy.save_pretrained`."
+        ),
+    )
+
     args = parser.parse_args()
 
     init_logging()
@@ -523,6 +603,12 @@ if __name__ == "__main__":
 
     elif control_mode == "replay":
         replay(robot, **kwargs)
+
+    elif control_mode == "show_position":
+        show_position(robot, **kwargs)
+
+    elif control_mode == "test_policy":
+        test_policy(robot, **kwargs)
 
     if robot.is_connected:
         # Disconnect manually to avoid a "Core dump" during process
