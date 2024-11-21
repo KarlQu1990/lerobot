@@ -1,15 +1,19 @@
 #!/bin/bash
 
 HF_USER=$(huggingface-cli whoami | head -n 1)
+if [ "$HF_USER" = "Not logged in" ];then
+    HF_USER=$USER
+fi
+
 DATA_ROOT=/home/hhws/projects/robot_datasets
 ROBOT_PATH=lerobot/configs/robot/koch.yaml
-DATASET_NAME=$HF_USER/koch_test4
+DATASET_NAME=$HF_USER/koch_test5
 FPS=30
 WARMUP_TIME_S=5
 EPISODE_TIME_S=60
 RESET_TIME_S=30
-NUM_EPISODES=50
-PRETRAINED_PATH=outputs/train/act_koch_test3/checkpoints/030000/pretrained_model
+NUM_EPISODES=1
+PRETRAINED_PATH=
 
 if [ -n $PRETRAINED_PATH ]; then
   python lerobot/scripts/control_robot.py record \

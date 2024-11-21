@@ -1,6 +1,10 @@
 #!/bin/bash
 
 HF_USER=$(huggingface-cli whoami | head -n 1)
+if [ "$HF_USER" = "Not logged in" ];then
+    HF_USER=$USER
+fi
+
 DATA_ROOT=/home/hhws/projects/robot_datasets
 DATASET_NAME=$HF_USER/koch_test4,$HF_USER/koch_test3
 POLICY_NAME=act_koch_real
