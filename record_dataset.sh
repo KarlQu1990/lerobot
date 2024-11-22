@@ -13,10 +13,11 @@ WARMUP_TIME_S=5
 EPISODE_TIME_S=60
 RESET_TIME_S=30
 NUM_EPISODES=1
-PRETRAINED_PATH=
+PRETRAINED_PATH=outputs/train/act_koch_test4_2/checkpoints/last/pretrained_model
 
-if [ -n $PRETRAINED_PATH ]; then
-  python lerobot/scripts/control_robot.py record \
+if [ -z $PRETRAINED_PATH ]; then
+  echo "不带预训练权重录制。"
+    python lerobot/scripts/control_robot.py record \
     --robot-path $ROBOT_PATH \
     --fps $FPS \
     --root $DATA_ROOT \
@@ -28,6 +29,7 @@ if [ -n $PRETRAINED_PATH ]; then
     --reset-time-s $RESET_TIME_S \
     --num-episodes $NUM_EPISODES
 else
+    echo "带预训练权重录制。"
     python lerobot/scripts/control_robot.py record \
     --robot-path $ROBOT_PATH \
     --fps $FPS \
