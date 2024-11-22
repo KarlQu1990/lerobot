@@ -13,7 +13,7 @@ WARMUP_TIME_S=5
 EPISODE_TIME_S=60
 RESET_TIME_S=30
 NUM_EPISODES=1
-PRETRAINED_PATH=outputs/train/act_koch_test4_2/checkpoints/last/pretrained_model
+PRETRAINED_PATH=
 
 if [ -z $PRETRAINED_PATH ]; then
   echo "不带预训练权重录制。"

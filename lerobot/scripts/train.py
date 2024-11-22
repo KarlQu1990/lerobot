@@ -56,16 +56,12 @@ def make_optimizer_and_scheduler(cfg, policy):
         optimizer_params_dicts = [
             {
                 "params": [
-                    p
-                    for n, p in policy.named_parameters()
-                    if not n.startswith("model.backbone") and p.requires_grad
+                    p for n, p in policy.named_parameters() if not n.startswith("model.backbone") and p.requires_grad
                 ]
             },
             {
                 "params": [
-                    p
-                    for n, p in policy.named_parameters()
-                    if n.startswith("model.backbone") and p.requires_grad
+                    p for n, p in policy.named_parameters() if n.startswith("model.backbone") and p.requires_grad
                 ],
                 "lr": cfg.training.lr_backbone,
             },
@@ -377,8 +373,7 @@ def train(cfg: DictConfig, out_dir: str | None = None, job_name: str | None = No
             logging.info("Resume training")
 
         if cfg.training.save_checkpoint and (
-            step % cfg.training.save_freq == 0
-            or step == cfg.training.offline_steps + cfg.training.online_steps
+            step % cfg.training.save_freq == 0 or step == cfg.training.offline_steps + cfg.training.online_steps
         ):
             logging.info(f"Checkpoint policy after step {step}")
             # Note: Save with step as the identifier, and format it to have at least 6 digits but more if
@@ -550,9 +545,7 @@ def train(cfg: DictConfig, out_dir: str | None = None, job_name: str | None = No
                     max_episodes_rendered=min(10, cfg.training.online_rollout_n_episodes),
                     videos_dir=logger.log_dir / "online_rollout_videos",
                     return_episode_data=True,
-                    start_seed=(
-                        rollout_start_seed := (rollout_start_seed + cfg.training.batch_size) % 1000000
-                    ),
+                    start_seed=(rollout_start_seed := (rollout_start_seed + cfg.training.batch_size) % 1000000),
                 )
             online_rollout_s = time.perf_counter() - start_rollout_time
 
@@ -582,16 +575,11 @@ def train(cfg: DictConfig, out_dir: str | None = None, job_name: str | None = No
         future = executor.submit(sample_trajectory_and_update_buffer)
         # If we aren't doing async rollouts, or if we haven't yet gotten enough examples in our buffer, wait
         # here until the rollout and buffer update is done, before proceeding to the policy update steps.
-        if (
-            not cfg.training.do_online_rollout_async
-            or len(online_dataset) <= cfg.training.online_buffer_seed_size
-        ):
+        if not cfg.training.do_online_rollout_async or len(online_dataset) <= cfg.training.online_buffer_seed_size:
             online_rollout_s, update_online_buffer_s = future.result()
 
         if len(online_dataset) <= cfg.training.online_buffer_seed_size:
-            logging.info(
-                f"Seeding online buffer: {len(online_dataset)}/{cfg.training.online_buffer_seed_size}"
-            )
+            logging.info(f"Seeding online buffer: {len(online_dataset)}/{cfg.training.online_buffer_seed_size}")
             continue
 
         policy.train()
