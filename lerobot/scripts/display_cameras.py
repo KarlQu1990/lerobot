@@ -17,14 +17,15 @@ if __name__ == "__main__":
         logger.info("未找到可用摄像头。")
         sys.exit()
     
-    cols = 2
-    rows = math.ceil(len(camera_infos) / cols)
+    camera_num = len(camera_infos)
+    cols = min(2, camera_num)
+    rows = math.ceil(camera_num / cols)
     width = 640
     height = 480
     concat_img = np.zeros((height * rows, width * cols, 3), np.uint8)
 
     cameras = []
-    logger.info(f"发现摄像头: {camera_infos}")
+    logger.info(f"发现摄像头: 数量={camera_num}, 信息：{camera_infos}")
     for i, info in enumerate(camera_infos):
         row = i // cols
         col = i % cols
