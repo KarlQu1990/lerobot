@@ -38,18 +38,18 @@ follower_arms:
 cameras:
   laptop:
     _target_: lerobot.common.robot_devices.cameras.opencv.OpenCVCamera
-    camera_index: /dev/video_high
+    camera_index: /dev/video_low
     fps: 30
     width: 640
     height: 480
     pixel_format: "YUYV"
   phone:
     _target_: lerobot.common.robot_devices.cameras.opencv.OpenCVCamera
-    camera_index: /dev/video_low
+    camera_index: /dev/video_high
     fps: 30
     width: 640
     height: 480
-    pixel_format: "YUYV"
+    pixel_format: "MJPG"
 
 # ~ Koch specific settings ~
 # Sets the leader arm in torque mode with the gripper motor set to this angle. This makes it possible
