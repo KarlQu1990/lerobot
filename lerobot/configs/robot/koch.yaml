@@ -38,14 +38,14 @@ follower_arms:
 cameras:
   laptop:
     _target_: lerobot.common.robot_devices.cameras.opencv.OpenCVCamera
-    camera_index: /dev/video_laptop
+    camera_index: /dev/video_high
     fps: 30
     width: 640
     height: 480
     pixel_format: "YUYV"
   phone:
     _target_: lerobot.common.robot_devices.cameras.opencv.OpenCVCamera
-    camera_index: /dev/video_phone
+    camera_index: /dev/video_low
     fps: 30
     width: 640
     height: 480
