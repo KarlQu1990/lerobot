@@ -49,7 +49,7 @@ cameras:
     fps: 30
     width: 640
     height: 480
-    pixel_format: "MJPG"
+    pixel_format: "YUYV"
 
 # ~ Koch specific settings ~
 # Sets the leader arm in torque mode with the gripper motor set to this angle. This makes it possible
