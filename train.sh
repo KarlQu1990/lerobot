@@ -6,7 +6,7 @@ if [ "$HF_USER" = "Not logged in" ];then
 fi
 
 DATA_ROOT=/home/hhws/projects/robot_datasets
-DATASET_NAME=$HF_USER/koch_test4,$HF_USER/koch_test3
+DATASET_NAMES=$HF_USER/koch_test4,$HF_USER/koch_test3
 POLICY_NAME=act_koch_real
 ENV_NAME=koch_real
 RUN_DIR=outputs/train/act_koch_test4_2
@@ -22,7 +22,7 @@ VISION_BACKBONE=resnet18
 PRETRAINED_BACKBONE_WEIGHTS=ResNet18_Weights.IMAGENET1K_V1
 
 DATA_DIR=$DATA_ROOT python lerobot/scripts/train.py \
-  "++dataset_repo_id=[${DATASET_NAME}]" \
+  "++dataset_repo_id=[${DATASET_NAMES}]" \
   policy=$POLICY_NAME \
   env=$ENV_NAME \
   hydra.run.dir=$RUN_DIR \
