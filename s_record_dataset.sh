@@ -6,8 +6,8 @@ if [ "$HF_USER" = "Not logged in" ];then
 fi
 
 DATA_ROOT=/home/hhws/projects/robot_datasets
-ROBOT_PATH=lerobot/configs/robot/koch.yaml
-DATASET_NAME=$HF_USER/koch_test5
+ROBOT_PATH=lerobot/configs/robot/so100.yaml
+DATASET_NAME=$HF_USER/so100_test1
 FPS=30
 WARMUP_TIME_S=5
 EPISODE_TIME_S=60

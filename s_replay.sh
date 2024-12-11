@@ -1,7 +1,11 @@
 #!/bin/bash
+HF_USER=$(huggingface-cli whoami | head -n 1)
+if [ "$HF_USER" = "Not logged in" ];then
+    HF_USER=$USER
+fi
 
 DATA_ROOT=/home/hhws/projects/robot_datasets
-DATASET_NAME="lerobot/debug"
+DATASET_NAME=$HF_USER/so100_test1
 EPISODE=0
 FPS=30
 
