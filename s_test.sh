@@ -1,6 +1,6 @@
 #!/bin/bash
 DATA_ROOT=/home/hhws/projects/robot_datasets
-ROBOT_PATH=lerobot/configs/robot/koch.yaml
+ROBOT_PATH=lerobot/configs/robot/so100.yaml
 PRETRAINED_PATH=outputs/train/act_koch_test4_3/checkpoints/last/pretrained_model
 FPS=30
 INFERENCE_TIME_S=120

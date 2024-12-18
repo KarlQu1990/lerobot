@@ -309,6 +309,7 @@ class ManipulatorRobot:
             self.leader_arms[name].read("Present_Position")
 
         # Connect the cameras
+        print("#############3 cameras:", self.cameras)
         for name in self.cameras:
             self.cameras[name].connect()
 
