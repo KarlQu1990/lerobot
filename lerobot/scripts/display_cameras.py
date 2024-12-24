@@ -22,6 +22,7 @@ if __name__ == "__main__":
     rows = math.ceil(camera_num / cols)
     width = 640
     height = 480
+    fps = 30
     concat_img = np.zeros((height * rows, width * cols, 3), np.uint8)
 
     cameras = []
@@ -31,7 +32,7 @@ if __name__ == "__main__":
         col = i % cols
 
         idx = info["index"]
-        camera = OpenCVCamera(idx, width=width, height=height, color_mode="bgr")
+        camera = OpenCVCamera(idx, width=width, height=height, fps=fps, color_mode="bgr", pixel_format="MJPG")
         try:
             camera.connect()
         except Exception as e:
