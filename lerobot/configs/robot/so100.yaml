@@ -18,7 +18,8 @@ max_relative_target: null
 leader_arms:
   main:
     _target_: lerobot.common.robot_devices.motors.feetech.FeetechMotorsBus
-    port: /dev/ttyACM_header
+    port: /dev/ttyUSB_header_left
+    # port: /dev/ttyACM0
     motors:
       # name: (index, model)
       shoulder_pan: [1, "sts3215"]
@@ -31,7 +32,8 @@ leader_arms:
 follower_arms:
   main:
     _target_: lerobot.common.robot_devices.motors.feetech.FeetechMotorsBus
-    port: /dev/ttyACM_follower
+    port: /dev/ttyUSB_follower_left
+    # port: /dev/ttyACM1
     motors:
       # name: (index, model)
       shoulder_pan: [1, "sts3215"]

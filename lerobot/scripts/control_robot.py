@@ -345,13 +345,18 @@ def replay(
 
 @safe_disconnect
 def show_position(robot: Robot, **kwargas):
-    leader_pos = robot.leader_arms["main"].read("Present_Position")
-    follower_pos = robot.follower_arms["main"].read("Present_Position")
-    
-    leader_pos_str = ", ".join([map(lambda x: f"{x:.2f}", leader_pos)])
-    follower_pos_str = ", ".join([map(lambda x: f"{x:.2f}", follower_pos)])
-    logging.info(f"主臂关节角: {leader_pos_str}")
-    logging.info(f"从臂关节角: {follower_pos_str}")
+    if not robot.is_connected:
+        robot.connect()
+
+    for name, arm in robot.leader_arms.items():
+        pos = arm.read("Present_Position")
+        pos_str = ", ".join(map(lambda x: f"{x:.2f}", pos))
+        logging.info(f"主臂{name}, 关节角: {pos_str}")
+
+    for name, arm in robot.follower_arms.items():
+        pos = arm.read("Present_Position")
+        pos_str = ", ".join(map(lambda x: f"{x:.2f}", pos))
+        logging.info(f"从臂{name}, 关节角: {pos_str}")
 
 @safe_disconnect
 def test_policy(
@@ -576,6 +581,8 @@ if __name__ == "__main__":
             "saved using `Policy.save_pretrained`."
         ),
     )
+
+    parser_show_position = subparsers.add_parser("show_position", parents=[base_parser])
 
     args = parser.parse_args()
 

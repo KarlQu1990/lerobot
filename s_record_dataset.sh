@@ -6,13 +6,13 @@ if [ "$HF_USER" = "Not logged in" ];then
 fi
 
 DATA_ROOT=/home/hhws/projects/robot_datasets
-ROBOT_PATH=lerobot/configs/robot/so100.yaml
-DATASET_NAME=$HF_USER/so100_test1
+ROBOT_PATH=lerobot/configs/robot/so100_bimanual.yaml
+DATASET_NAME=$HF_USER/so100_bimanual_transfer_1
 FPS=30
 WARMUP_TIME_S=5
 EPISODE_TIME_S=60
 RESET_TIME_S=30
-NUM_EPISODES=5
+NUM_EPISODES=50
 PRETRAINED_PATH=
 
 if [ -z $PRETRAINED_PATH ]; then

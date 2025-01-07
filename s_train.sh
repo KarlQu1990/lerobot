@@ -6,11 +6,11 @@ if [ "$HF_USER" = "Not logged in" ];then
 fi
 
 DATA_ROOT=/home/hhws/projects/robot_datasets
-DATASET_NAMES=$HF_USER/so100_test1
-POLICY_NAME=act_so100_real
-ENV_NAME=so100_real
-RUN_DIR=outputs/train/act_so100_test1
-JOB_NAME=act_so100_test1
+DATASET_NAMES=$HF_USER/so100_bimanual_transfer_1
+POLICY_NAME=act_so100_bimanual_real
+ENV_NAME=so100_bimanual_real
+RUN_DIR=outputs/train/act_so100_bimanual_transfer_1
+JOB_NAME=act_so100_bimanual_transfer_1
 DEVICE=cuda
 OFFLINE_STEPS=80000
 SAVE_FREQ=10000

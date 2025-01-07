@@ -1,6 +1,6 @@
 _target_: lerobot.common.robot_devices.robots.manipulator.ManipulatorRobot
-robot_type: koch_bimanual
-calibration_dir: .cache/calibration/koch_bimanual
+robot_type: so100_bimanual
+calibration_dir: .cache/calibration/so100_bimanual
 
 # `max_relative_target` limits the magnitude of the relative positional target vector for safety purposes.
 # Set this to a positive scalar to have the same value for all motors, or a list that is the same length as
@@ -9,8 +9,8 @@ max_relative_target: null
 
 leader_arms:
   left:
-    _target_: lerobot.common.robot_devices.motors.dynamixel.DynamixelMotorsBus
-    port: /dev/tty.usbmodem585A0085511
+    _target_: lerobot.common.robot_devices.motors.feetech.FeetechMotorsBus
+    port: /dev/ttyUSB_header_left
     motors:
       # name: (index, model)
       shoulder_pan: [1, "sts3215"]
@@ -20,8 +20,8 @@ leader_arms:
       wrist_roll: [5, "sts3215"]
       gripper: [6, "sts3215"]
   right:
-    _target_: lerobot.common.robot_devices.motors.dynamixel.DynamixelMotorsBus
-    port: /dev/tty.usbmodem575E0031751
+    _target_: lerobot.common.robot_devices.motors.feetech.FeetechMotorsBus
+    port: /dev/ttyUSB_header_right
     motors:
       # name: (index, model)
       shoulder_pan: [1, "sts3215"]
@@ -33,8 +33,8 @@ leader_arms:
 
 follower_arms:
   left:
-    _target_: lerobot.common.robot_devices.motors.dynamixel.DynamixelMotorsBus
-    port: /dev/tty.usbmodem585A0076891
+    _target_: lerobot.common.robot_devices.motors.feetech.FeetechMotorsBus
+    port: /dev/ttyUSB_follower_left
     motors:
       # name: (index, model)
       shoulder_pan: [1, "sts3215"]
@@ -44,8 +44,8 @@ follower_arms:
       wrist_roll: [5, "sts3215"]
       gripper: [6, "sts3215"]
   right:
-    _target_: lerobot.common.robot_devices.motors.dynamixel.DynamixelMotorsBus
-    port: /dev/tty.usbmodem575E0032081
+    _target_: lerobot.common.robot_devices.motors.feetech.FeetechMotorsBus
+    port: /dev/ttyUSB_follower_right
     motors:
       # name: (index, model)
       shoulder_pan: [1, "sts3215"]
