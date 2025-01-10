@@ -7,10 +7,10 @@ fi
 
 DATA_ROOT=/home/hhws/projects/robot_datasets
 ROBOT_PATH=lerobot/configs/robot/so100_bimanual.yaml
-DATASET_NAME=$HF_USER/so100_bimanual_transfer_1
+DATASET_NAME=$HF_USER/so100_bimanual_clothes_2
 FPS=30
 WARMUP_TIME_S=5
-EPISODE_TIME_S=60
+EPISODE_TIME_S=90
 RESET_TIME_S=30
 NUM_EPISODES=50
 PRETRAINED_PATH=
