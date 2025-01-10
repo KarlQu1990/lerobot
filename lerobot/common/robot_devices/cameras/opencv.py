@@ -1,7 +1,6 @@
 """
 This file contains utilities for recording frames from cameras. For more info look at `OpenCVCamera` docstring.
 """
-
 import argparse
 import concurrent.futures
 import math
@@ -9,9 +8,11 @@ import platform
 import shutil
 import threading
 import time
+import multiprocessing as mp
 from dataclasses import dataclass, replace
 from pathlib import Path
 from threading import Thread
+
 
 import numpy as np
 from PIL import Image
@@ -213,6 +214,7 @@ class OpenCVCameraConfig:
 
         if self.pixel_format not in ["YUYV", "MJPG"]:
             raise ValueError(f"`pixel_format` must be in ['YUYV', 'MJPG'] (got {self.rotation})")
+        
 
 class OpenCVCamera:
     """
@@ -446,7 +448,8 @@ class OpenCVCamera:
             )
 
         if self.thread is None:
-            self.stop_event = threading.Event()
+            # self.stop_event = threading.Event()
+            self.stop_event = mp.Event()
             self.thread = Thread(target=self.read_loop, args=())
             self.thread.daemon = True
             self.thread.start()

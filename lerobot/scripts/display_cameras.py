@@ -4,6 +4,7 @@ import sys
 import math
 import logging
 import subprocess
+import argparse
 
 from lerobot.common.robot_devices.cameras.opencv import find_cameras, OpenCVCamera
 
@@ -12,6 +13,13 @@ logging.basicConfig(format=FORMAT, level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--fps", type=int, default=30, help="视频帧率。")
+    parser.add_argument("--pixel-format", type=str, default="MJPG", choices=["YUYV", "MJPG"], help="像素格式。")
+    parser.add_argument("--color-mode", type=str, choices=["bgr", "rgb"], help="颜色通道模式")
+    args = parser.parse_args()
+
+
     camera_infos = find_cameras()
     if not camera_infos:
         logger.info("未找到可用摄像头。")
@@ -32,7 +40,7 @@ if __name__ == "__main__":
         col = i % cols
 
         idx = info["index"]
-        camera = OpenCVCamera(idx, width=width, height=height, fps=fps, color_mode="bgr", pixel_format="MJPG")
+        camera = OpenCVCamera(idx, width=width, height=height, fps=args.fps, color_mode=args.color_mode, pixel_format=args.pixel_format)
         try:
             camera.connect()
         except Exception as e:
