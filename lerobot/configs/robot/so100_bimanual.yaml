@@ -10,8 +10,7 @@ max_relative_target: null
 leader_arms:
   left:
     _target_: lerobot.common.robot_devices.motors.feetech.FeetechMotorsBus
-    # port: /dev/ttyUSB_header_left
-    port: /dev/ttyUSB1
+    port: /dev/ttyUSB_header_left
     motors:
       # name: (index, model)
       shoulder_pan: [1, "sts3215"]
@@ -22,8 +21,7 @@ leader_arms:
       gripper: [6, "sts3215"]
   right:
     _target_: lerobot.common.robot_devices.motors.feetech.FeetechMotorsBus
-    # port: /dev/ttyUSB_header_right
-    port: /dev/ttyUSB2
+    port: /dev/ttyUSB_header_right
     motors:
       # name: (index, model)
       shoulder_pan: [1, "sts3215"]
@@ -36,8 +34,7 @@ leader_arms:
 follower_arms:
   left:
     _target_: lerobot.common.robot_devices.motors.feetech.FeetechMotorsBus
-    # port: /dev/ttyUSB_follower_left
-    port: /dev/ttyUSB0
+    port: /dev/ttyUSB_follower_left
     motors:
       # name: (index, model)
       shoulder_pan: [1, "sts3215"]
@@ -48,8 +45,7 @@ follower_arms:
       gripper: [6, "sts3215"]
   right:
     _target_: lerobot.common.robot_devices.motors.feetech.FeetechMotorsBus
-    # port: /dev/ttyUSB_follower_right
-    port: /dev/ttyUSB3
+    port: /dev/ttyUSB_follower_right
     motors:
       # name: (index, model)
       shoulder_pan: [1, "sts3215"]
