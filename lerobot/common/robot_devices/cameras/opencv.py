@@ -337,6 +337,7 @@ class CameraProcess:
                 print(f"Error reading in process: {e}")
 
     def read_thread_loop(self, queue: mp.Queue, stop_event: MpEvent):
+        elapse = 2 / self.fps 
         while not stop_event.is_set():
             if not queue.empty():
                 result = queue.get()
@@ -347,6 +348,7 @@ class CameraProcess:
                 self.logs["delta_timestamp_s"] = delta_timestamp_s
                 self.logs["timestamp_utc"] = timestamp_utc
                 self.color_image = color_image
+                time.sleep(elapse)
 
     def asyn_read(self):
         if self.read_process is None:
