@@ -16,7 +16,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--fps", type=int, default=30, help="视频帧率。")
     parser.add_argument("--pixel-format", type=str, default="MJPG", choices=["YUYV", "MJPG"], help="像素格式。")
-    parser.add_argument("--color-mode", type=str, choices=["bgr", "rgb"], help="颜色通道模式")
+    parser.add_argument("--color-mode", type=str, default="bgr", choices=["bgr", "rgb"], help="颜色通道模式")
     args = parser.parse_args()
 
 
@@ -71,6 +71,7 @@ if __name__ == "__main__":
                 cv2.imshow("frame", concat_img)
                 if cv2.waitKey(5) == ord("q"):
                     break
+
     except Exception as e:
         logger.exception("读取摄像头流异常::")
         for _, camera in cameras:
