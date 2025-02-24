@@ -123,6 +123,8 @@ from lerobot.common.robot_devices.control_utils import (
     sanity_check_dataset_name,
     stop_recording,
     warmup_record,
+    is_headless,
+    show_image_observation
 )
 from lerobot.common.robot_devices.robots.factory import make_robot
 from lerobot.common.robot_devices.robots.utils import Robot
@@ -267,7 +269,7 @@ def record(
             break
 
         episode_index = dataset["num_episodes"]
-        log_say(f"录制第{episode_index}个视频", play_sounds)
+        log_say(f"录制第{episode_index+1}个视频", play_sounds)
         record_episode(
             dataset=dataset,
             robot=robot,
@@ -381,6 +383,9 @@ def test_policy(
         # Read the follower state and access the frames from the cameras
         observation = robot.capture_observation()
 
+        if not is_headless():
+            show_image_observation(observation)
+
         # Convert to pytorch format: channel first and float32 in [0,1]
         # with batch dimension
         for name in observation:
@@ -402,6 +407,17 @@ def test_policy(
 
         dt_s = time.perf_counter() - start_time
         busy_wait(1 / fps - dt_s)
+
+
+@safe_disconnect
+def torque_disable(
+    robot: Robot
+):
+
+    if not robot.is_connected:
+        robot.connect()
+
+    robot.torque_disable()
 
 
 if __name__ == "__main__":
@@ -583,6 +599,7 @@ if __name__ == "__main__":
     )
 
     parser_show_position = subparsers.add_parser("show_position", parents=[base_parser])
+    parser_torque_disable = subparsers.add_parser("torque_disable", parents=[base_parser])
 
     args = parser.parse_args()
 
@@ -616,6 +633,9 @@ if __name__ == "__main__":
 
     elif control_mode == "test_policy":
         test_policy(robot, **kwargs)
+
+    elif control_mode == "torque_disable":
+        torque_disable(robot, **kwargs)
 
     if robot.is_connected:
         # Disconnect manually to avoid a "Core dump" during process

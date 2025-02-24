@@ -222,6 +222,55 @@ def record_episode(
     )
 
 
+def show_image_observation(observation:dict):
+    image_keys = [key for key in observation if "image" in key]
+
+    cols = 2
+    rows = math.ceil(len(image_keys) / cols)
+
+    raw_imgs = [[]] * rows
+    for i, key in enumerate(image_keys):
+        row = i // cols
+        img = observation[key].numpy()
+        raw_imgs[row].append(img)
+
+    col_imgs = []
+    max_height = 0
+    col_width = 0
+    for i in range(cols):
+        max_width = 0
+        col_height = 0
+        for row_imgs in raw_imgs:
+            width = row_imgs[i].shape[1] 
+            if width > max_width:
+                max_width = width
+            
+            col_height += row_imgs[i].shape[0]
+        
+        col_img = np.zeros((col_height, max_width, 3), np.uint8)
+        y_offset = 0
+        for row_imgs in raw_imgs:
+            img = row_imgs[i]
+            height, width = img.shape[:2]
+            col_img[y_offset: y_offset + height, :width, :] = img
+            y_offset += height
+        
+        col_imgs.append(col_img)
+        if col_height > max_height:
+            max_height = col_height
+        col_width+= max_width
+    
+    concat_img = np.zeros((max_height, col_width, 3), np.uint8)
+    x_offset = 0                
+    for img in col_imgs:
+        height, width = img.shape[:2]
+        concat_img[:height, x_offset:x_offset+width, :] = img
+        x_offset += width
+        
+    cv2.imshow(key, cv2.cvtColor(concat_img, cv2.COLOR_RGB2BGR))
+    cv2.waitKey(1) 
+
+
 @safe_stop_image_writer
 def control_loop(
     robot,
@@ -275,53 +324,7 @@ def control_loop(
                 add_frame(dataset, observation, action)
 
             if display_cameras and not is_headless():
-                image_keys = [key for key in observation if "image" in key]
-
-                cols = 2
-                rows = math.ceil(len(image_keys) / cols)
-            
-                raw_imgs = [[]] * rows
-                for i, key in enumerate(image_keys):
-                    row = i // cols
-                    img = observation[key].numpy()
-                    raw_imgs[row].append(img)
-
-                col_imgs = []
-                max_height = 0
-                col_width = 0
-                for i in range(cols):
-                    max_width = 0
-                    col_height = 0
-                    for row_imgs in raw_imgs:
-                        width = row_imgs[i].shape[1] 
-                        if width > max_width:
-                            max_width = width
-                        
-                        col_height += row_imgs[i].shape[0]
-                    
-                    col_img = np.zeros((col_height, max_width, 3), np.uint8)
-                    y_offset = 0
-                    for row_imgs in raw_imgs:
-                        img = row_imgs[i]
-                        height, width = img.shape[:2]
-                        col_img[y_offset: y_offset + height, :width, :] = img
-                        y_offset += height
-                    
-                    col_imgs.append(col_img)
-                    if col_height > max_height:
-                        max_height = col_height
-                    col_width+= max_width
-                
-                concat_img = np.zeros((max_height, col_width, 3), np.uint8)
-                x_offset = 0                
-                for img in col_imgs:
-                    height, width = img.shape[:2]
-                    concat_img[:height, x_offset:x_offset+width, :] = img
-                    x_offset += width
-
-
-                cv2.imshow(key, cv2.cvtColor(concat_img, cv2.COLOR_RGB2BGR))
-                cv2.waitKey(1)
+                show_image_observation(observation)
 
             if fps is not None:
                 dt_s = time.perf_counter() - start_loop_t

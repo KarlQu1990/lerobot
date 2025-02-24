@@ -1,9 +1,9 @@
 #!/bin/bash
 DATA_ROOT=/home/hhws/projects/robot_datasets
 ROBOT_PATH=lerobot/configs/robot/so100_bimanual.yaml
-PRETRAINED_PATH=outputs/train/act_so100_bimanual_clothes_2/checkpoints/last/pretrained_model
+PRETRAINED_PATH=outputs/train/act_so100_bimanual_transfer_3/checkpoints/last/pretrained_model
 FPS=30
-INFERENCE_TIME_S=120
+INFERENCE_TIME_S=300
 DEVICE=cuda
 
 python lerobot/scripts/control_robot.py test_policy \
