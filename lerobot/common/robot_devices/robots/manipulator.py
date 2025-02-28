@@ -81,7 +81,7 @@ class ManipulatorRobotConfig:
         super().__setattr__(prop, val)
 
     def __post_init__(self):
-        if self.robot_type not in ["koch", "koch_bimanual", "aloha", "so100", "so100_bimanual","moss"]:
+        if self.robot_type not in ["koch", "koch_bimanual", "aloha", "so100", "so100_bimanual", "moss"]:
             raise ValueError(f"Provided robot type ({self.robot_type}) is not supported.")
 
 
@@ -244,11 +244,11 @@ class ManipulatorRobot:
             arm_id = get_arm_id(name, "leader")
             available_arms.append(arm_id)
         return available_arms
-    
+
     def torque_disable(self):
         if self.robot_type in ["koch", "koch_bimanual", "aloha"]:
             from lerobot.common.robot_devices.motors.dynamixel import TorqueMode
-        elif self.robot_type in ["so100","so100_bimanual" ,"moss"]:
+        elif self.robot_type in ["so100", "so100_bimanual", "moss"]:
             from lerobot.common.robot_devices.motors.feetech import TorqueMode
 
         # We assume that at connection time, arms are in a rest position, and torque can
@@ -257,7 +257,6 @@ class ManipulatorRobot:
             self.follower_arms[name].write("Torque_Enable", TorqueMode.DISABLED.value)
         for name in self.leader_arms:
             self.leader_arms[name].write("Torque_Enable", TorqueMode.DISABLED.value)
-
 
     def connect(self):
         if self.is_connected:
@@ -279,7 +278,7 @@ class ManipulatorRobot:
             self.leader_arms[name].connect()
 
         self.torque_disable()
-        
+
         self.activate_calibration()
 
         # Set robot preset (e.g. torque in leader gripper for Koch v1.1)
@@ -287,7 +286,7 @@ class ManipulatorRobot:
             self.set_koch_robot_preset()
         elif self.robot_type == "aloha":
             self.set_aloha_robot_preset()
-        elif self.robot_type in ["so100", "moss"]:
+        elif self.robot_type in ["so100", "so100_bimanual", "moss"]:
             self.set_so100_robot_preset()
 
         # Enable torque on all motors of the follower arms
@@ -430,9 +429,7 @@ class ManipulatorRobot:
             # rotate more than 360 degrees (from 0 to 4095) And some mistake can happen while assembling the arm,
             # you could end up with a servo with a position 0 or 4095 at a crucial point See [
             # https://emanual.robotis.com/docs/en/dxl/x/x_series/#operating-mode11]
-            all_motors_except_gripper = [
-                name for name in self.follower_arms[name].motor_names if name != "gripper"
-            ]
+            all_motors_except_gripper = [name for name in self.follower_arms[name].motor_names if name != "gripper"]
             if len(all_motors_except_gripper) > 0:
                 # 4 corresponds to Extended Position on Aloha motors
                 self.follower_arms[name].write("Operating_Mode", 4, all_motors_except_gripper)
@@ -457,25 +454,21 @@ class ManipulatorRobot:
             # Mode=0 for Position Control
             self.follower_arms[name].write("Mode", 0)
             # Set P_Coefficient to lower value to avoid shakiness (Default is 32)
-            self.follower_arms[name].write("P_Coefficient", 16)
+            self.follower_arms[name].write("P_Coefficient", 6)
             # Set I_Coefficient and D_Coefficient to default value 0 and 32
             self.follower_arms[name].write("I_Coefficient", 0)
-            self.follower_arms[name].write("D_Coefficient", 32)
+            self.follower_arms[name].write("D_Coefficient", 1)
             # Close the write lock so that Maximum_Acceleration gets written to EPROM address,
             # which is mandatory for Maximum_Acceleration to take effect after rebooting.
             self.follower_arms[name].write("Lock", 0)
             # Set Maximum_Acceleration to 254 to speedup acceleration and deceleration of
             # the motors. Note: this configuration is not in the official STS3215 Memory Table
-            self.follower_arms[name].write("Maximum_Acceleration", 254)
-            self.follower_arms[name].write("Acceleration", 254)
+            self.follower_arms[name].write("Maximum_Acceleration", 50)
+            self.follower_arms[name].write("Acceleration", 50)
 
-    def teleop_step(
-        self, record_data=False
-    ) -> None | tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]:
+    def teleop_step(self, record_data=False) -> None | tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]:
         if not self.is_connected:
-            raise RobotDeviceNotConnectedError(
-                "ManipulatorRobot is not connected. You need to run `robot.connect()`."
-            )
+            raise RobotDeviceNotConnectedError("ManipulatorRobot is not connected. You need to run `robot.connect()`.")
 
         # Prepare to assign the position of the leader to the follower
         leader_pos = {}
@@ -553,9 +546,7 @@ class ManipulatorRobot:
     def capture_observation(self):
         """The returned observations do not have a batch dimension."""
         if not self.is_connected:
-            raise RobotDeviceNotConnectedError(
-                "ManipulatorRobot is not connected. You need to run `robot.connect()`."
-            )
+            raise RobotDeviceNotConnectedError("ManipulatorRobot is not connected. You need to run `robot.connect()`.")
 
         # Read follower position
         follower_pos = {}
@@ -599,9 +590,7 @@ class ManipulatorRobot:
             action: tensor containing the concatenated goal positions for the follower arms.
         """
         if not self.is_connected:
-            raise RobotDeviceNotConnectedError(
-                "ManipulatorRobot is not connected. You need to run `robot.connect()`."
-            )
+            raise RobotDeviceNotConnectedError("ManipulatorRobot is not connected. You need to run `robot.connect()`.")
 
         from_idx = 0
         to_idx = 0
@@ -634,9 +623,10 @@ class ManipulatorRobot:
 
     def disconnect(self):
         if not self.is_connected:
-            raise RobotDeviceNotConnectedError(
-                "ManipulatorRobot is not connected. You need to run `robot.connect()` before disconnecting."
-            )
+            # raise RobotDeviceNotConnectedError(
+            #     "ManipulatorRobot is not connected. You need to run `robot.connect()` before disconnecting."
+            # )
+            return
 
         for name in self.follower_arms:
             self.follower_arms[name].disconnect()

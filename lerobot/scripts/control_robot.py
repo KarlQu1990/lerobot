@@ -117,14 +117,14 @@ from lerobot.common.robot_devices.control_utils import (
     has_method,
     init_keyboard_listener,
     init_policy,
+    is_headless,
     log_control_info,
     record_episode,
     reset_environment,
     sanity_check_dataset_name,
+    show_image_observation,
     stop_recording,
     warmup_record,
-    is_headless,
-    show_image_observation
 )
 from lerobot.common.robot_devices.robots.factory import make_robot
 from lerobot.common.robot_devices.robots.utils import Robot
@@ -160,9 +160,7 @@ def calibrate(robot: Robot, arms: list[str] | None):
         )
 
     if len(unknown_arms) > 0:
-        raise ValueError(
-            f"Unknown arms provided ('{unknown_arms_str}'). Available arms are `{available_arms_str}`."
-        )
+        raise ValueError(f"Unknown arms provided ('{unknown_arms_str}'). Available arms are `{available_arms_str}`.")
 
     for arm_id in arms:
         arm_calib_path = robot.calibration_dir / f"{arm_id}.json"
@@ -193,6 +191,7 @@ def teleoperate(
         teleoperate=True,
         display_cameras=display_cameras,
     )
+
 
 @safe_disconnect
 def record(
@@ -269,7 +268,7 @@ def record(
             break
 
         episode_index = dataset["num_episodes"]
-        log_say(f"录制第{episode_index+1}个视频", play_sounds)
+        log_say(f"录制第{episode_index + 1}个视频", play_sounds)
         record_episode(
             dataset=dataset,
             robot=robot,
@@ -286,9 +285,7 @@ def record(
         # Current code logic doesn't allow to teleoperate during this time.
         # TODO(rcadene): add an option to enable teleoperation during reset
         # Skip reset for the last episode to be recorded
-        if not events["stop_recording"] and (
-            (episode_index < num_episodes - 1) or events["rerecord_episode"]
-        ):
+        if not events["stop_recording"] and ((episode_index < num_episodes - 1) or events["rerecord_episode"]):
             log_say("重新布置环境", play_sounds)
             reset_environment(robot, events, reset_time_s)
 
@@ -315,9 +312,7 @@ def record(
 
 
 @safe_disconnect
-def replay(
-    robot: Robot, episode: int, fps: int | None = None, root="data", repo_id="lerobot/debug", play_sounds=True
-):
+def replay(robot: Robot, episode: int, fps: int | None = None, root="data", repo_id="lerobot/debug", play_sounds=True):
     # TODO(rcadene, aliberts): refactor with control_loop, once `dataset` is an instance of LeRobotDataset
     # TODO(rcadene): Add option to record logs
     local_dir = Path(root) / repo_id
@@ -345,26 +340,33 @@ def replay(
         dt_s = time.perf_counter() - start_episode_t
         log_control_info(robot, dt_s, fps=fps)
 
+
 @safe_disconnect
-def show_position(robot: Robot, **kwargas):
+def show_position(robot: Robot, **kwargs):
     if not robot.is_connected:
         robot.connect()
 
     for name, arm in robot.leader_arms.items():
         pos = arm.read("Present_Position")
-        pos_str = ", ".join(map(lambda x: f"{x:.2f}", pos))
+        pos_str = ", ".join([f"{x:.2f}" for x in pos])
         logging.info(f"主臂{name}, 关节角: {pos_str}")
 
     for name, arm in robot.follower_arms.items():
         pos = arm.read("Present_Position")
-        pos_str = ", ".join(map(lambda x: f"{x:.2f}", pos))
+        pos_str = ", ".join([f"{x:.2f}" for x in pos])
         logging.info(f"从臂{name}, 关节角: {pos_str}")
+
 
 @safe_disconnect
 def test_policy(
-    robot: Robot, fps: int | None = None, inference_time_s: int = 60, device: str = "cuda", pretrained_policy_name_or_path: str | None = None
+    robot: Robot,
+    fps: int | None = None,
+    inference_time_s: int = 60,
+    device: str = "cuda",
+    pretrained_policy_name_or_path: str | None = None,
 ):
     import torch
+
     from lerobot.common.policies.act.modeling_act import ACTPolicy
 
     if not pretrained_policy_name_or_path:
@@ -377,7 +379,9 @@ def test_policy(
     policy = ACTPolicy.from_pretrained(pretrained_policy_name_or_path)
     policy.to(device)
 
-    for _ in range(inference_time_s * fps):
+    time_cost = 0
+
+    while True:
         start_time = time.perf_counter()
 
         # Read the follower state and access the frames from the cameras
@@ -406,14 +410,18 @@ def test_policy(
         robot.send_action(action)
 
         dt_s = time.perf_counter() - start_time
-        busy_wait(1 / fps - dt_s)
+        print("FPS: ", 1 / dt_s)
+        time_cost += dt_s
+        if time_cost > inference_time_s:
+            break
+
+        elapse = 1 / fps - dt_s
+        if elapse > 0:
+            busy_wait(elapse)
 
 
 @safe_disconnect
-def torque_disable(
-    robot: Robot
-):
-
+def torque_disable(robot: Robot):
     if not robot.is_connected:
         robot.connect()
 
@@ -573,9 +581,7 @@ if __name__ == "__main__":
     parser_replay.add_argument("--episode", type=int, default=0, help="Index of the episode to replay.")
 
     parser_eval = subparsers.add_parser("test_policy", parents=[base_parser])
-    parser_eval.add_argument(
-        "--fps", type=none_or_int, default=None, help="Frames per second (set to None to disable)"
-    )
+    parser_eval.add_argument("--fps", type=none_or_int, default=None, help="Frames per second (set to None to disable)")
     parser_eval.add_argument(
         "--inference-time-s",
         type=int,

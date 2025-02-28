@@ -10,7 +10,7 @@ max_relative_target: null
 leader_arms:
   left:
     _target_: lerobot.common.robot_devices.motors.feetech.FeetechMotorsBus
-    port: /dev/ttyUSB_header_left
+    port: left_leader
     motors:
       # name: (index, model)
       shoulder_pan: [1, "sts3215"]
@@ -21,7 +21,7 @@ leader_arms:
       gripper: [6, "sts3215"]
   right:
     _target_: lerobot.common.robot_devices.motors.feetech.FeetechMotorsBus
-    port: /dev/ttyUSB_header_right
+    port: right_leader
     motors:
       # name: (index, model)
       shoulder_pan: [1, "sts3215"]
@@ -34,7 +34,7 @@ leader_arms:
 follower_arms:
   left:
     _target_: lerobot.common.robot_devices.motors.feetech.FeetechMotorsBus
-    port: /dev/ttyUSB_follower_left
+    port: left_follower
     motors:
       # name: (index, model)
       shoulder_pan: [1, "sts3215"]
@@ -45,7 +45,7 @@ follower_arms:
       gripper: [6, "sts3215"]
   right:
     _target_: lerobot.common.robot_devices.motors.feetech.FeetechMotorsBus
-    port: /dev/ttyUSB_follower_right
+    port: right_follower
     motors:
       # name: (index, model)
       shoulder_pan: [1, "sts3215"]
@@ -56,15 +56,27 @@ follower_arms:
       gripper: [6, "sts3215"]
 
 cameras:
-  laptop:
+  high:
     _target_: lerobot.common.robot_devices.cameras.opencv.OpenCVCamera
-    camera_index: /dev/video_low
+    camera_index: high
     fps: 30
     width: 640
     height: 480
-  phone:
+  low:
     _target_: lerobot.common.robot_devices.cameras.opencv.OpenCVCamera
-    camera_index: /dev/video_high
+    camera_index: low
+    fps: 30
+    width: 640
+    height: 480
+  left_wrist:
+    _target_: lerobot.common.robot_devices.cameras.opencv.OpenCVCamera
+    camera_index: left_wrist
+    fps: 30
+    width: 640
+    height: 480
+  right_wrist:
+    _target_: lerobot.common.robot_devices.cameras.opencv.OpenCVCamera
+    camera_index: right_wrist
     fps: 30
     width: 640
     height: 480
