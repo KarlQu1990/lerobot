@@ -287,7 +287,7 @@ class ManipulatorRobot:
             self.set_koch_robot_preset()
         elif self.robot_type == "aloha":
             self.set_aloha_robot_preset()
-        elif self.robot_type in ["so100", "moss"]:
+        elif self.robot_type in ["so100", "so100_bimanual","moss"]:
             self.set_so100_robot_preset()
 
         # Enable torque on all motors of the follower arms
@@ -457,17 +457,34 @@ class ManipulatorRobot:
             # Mode=0 for Position Control
             self.follower_arms[name].write("Mode", 0)
             # Set P_Coefficient to lower value to avoid shakiness (Default is 32)
-            self.follower_arms[name].write("P_Coefficient", 16)
+            self.follower_arms[name].write("P_Coefficient", 6)   # 16
             # Set I_Coefficient and D_Coefficient to default value 0 and 32
-            self.follower_arms[name].write("I_Coefficient", 0)
-            self.follower_arms[name].write("D_Coefficient", 32)
+            self.follower_arms[name].write("I_Coefficient", 0)  # 0
+            self.follower_arms[name].write("D_Coefficient", 1)   # 32
             # Close the write lock so that Maximum_Acceleration gets written to EPROM address,
             # which is mandatory for Maximum_Acceleration to take effect after rebooting.
             self.follower_arms[name].write("Lock", 0)
             # Set Maximum_Acceleration to 254 to speedup acceleration and deceleration of
             # the motors. Note: this configuration is not in the official STS3215 Memory Table
-            self.follower_arms[name].write("Maximum_Acceleration", 254)
-            self.follower_arms[name].write("Acceleration", 254)
+            self.follower_arms[name].write("Maximum_Acceleration", 50)  # 254
+            self.follower_arms[name].write("Acceleration", 50)  # 254
+
+        # for name in self.leader_arms:
+        #     # Mode=0 for Position Control
+        #     self.leader_arms[name].write("Mode", 0)
+        #     # Set P_Coefficient to lower value to avoid shakiness (Default is 32)
+        #     self.leader_arms[name].write("P_Coefficient", 6)   # 16
+        #     # Set I_Coefficient and D_Coefficient to default value 0 and 32
+        #     self.leader_arms[name].write("I_Coefficient", 0)  # 0
+        #     self.leader_arms[name].write("D_Coefficient", 1)   # 32
+        #     # Close the write lock so that Maximum_Acceleration gets written to EPROM address,
+        #     # which is mandatory for Maximum_Acceleration to take effect after rebooting.
+        #     self.leader_arms[name].write("Lock", 0)
+        #     # Set Maximum_Acceleration to 254 to speedup acceleration and deceleration of
+        #     # the motors. Note: this configuration is not in the official STS3215 Memory Table
+        #     self.leader_arms[name].write("Maximum_Acceleration", 50)  # 254
+        #     self.leader_arms[name].write("Acceleration", 50)  # 254
+
 
     def teleop_step(
         self, record_data=False

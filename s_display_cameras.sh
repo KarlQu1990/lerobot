@@ -1,6 +1,6 @@
 #!/bin/bash
 
-FPS=25
+FPS=30
 PIXEL_FORMAT=MJPG
 COLOR_MODE=bgr
 
