@@ -1,10 +1,11 @@
 import sys
 import signal
 
-from lerobot.common.robot_devices.robots.factory import make_robot
-from lerobot.common.utils.utils import init_hydra_config, init_logging
+from lerobot.common.robot_devices.robots.utils import make_robot
+from lerobot.common.utils.utils import init_logging
 from lerobot.scripts.control_robot import torque_disable
 from lerobot.common.utils.usb_utils import USBDeviceManager
+from lerobot.common.robot_devices.control_configs import TorqueDisableConfig
 
 
 robot = None
@@ -24,15 +25,14 @@ def terminate_handler(signum, frame):
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, terminate_handler)
     signal.signal(signal.SIGBREAK, terminate_handler)
-
-    robot_overrides = None
-    robot_path = "lerobot/configs/robot/so100_bimanual.yaml"
+    init_logging()
 
     # 加载USB信息
     USBDeviceManager().load()
 
-    init_logging()
-    robot_cfg = init_hydra_config(robot_path, robot_overrides)
-    robot = make_robot(robot_cfg)
+    robot_type = "so100_bimanual"
 
-    torque_disable(robot)
+    robot = make_robot(robot_type)
+    config = TorqueDisableConfig()
+
+    torque_disable(robot, config)
