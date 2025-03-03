@@ -222,17 +222,25 @@ def show_image_observation(observation: dict):
         max_width = 0
         col_height = 0
         for row_imgs in raw_imgs:
-            width = row_imgs[i].shape[1]
-            if width > max_width:
-                max_width = width
+            if i >= len(row_imgs):
+                img = row_imgs[i - 1]
+                col_height += img.shape[0]
+            else:
+                width = row_imgs[i].shape[1]
+                if width > max_width:
+                    max_width = width
 
-            col_height += row_imgs[i].shape[0]
+                col_height += row_imgs[i].shape[0]
 
         # 拼接图像
         col_img = np.zeros((col_height, max_width, 3), np.uint8)
         y_offset = 0
         for row_imgs in raw_imgs:
+            if i >= len(row_imgs):
+                continue
+
             img = row_imgs[i]
+
             height, width = img.shape[:2]
             col_img[y_offset : y_offset + height, :width, :] = img
             y_offset += height
@@ -294,7 +302,7 @@ def control_loop(
     log_interval = 5
     last_log_t = 0
 
-    with tqdm.tqdm(total=control_time_s, desc="Controling") as pbar:
+    with tqdm.tqdm(total=control_time_s, desc="Controling", bar_format="{n:.3f}") as pbar:
         while timestamp < control_time_s:
             start_loop_t = time.perf_counter()
 
