@@ -1,11 +1,11 @@
 #!/bin/bash
 
 FPS=30
-DISPLAY_CAMERAS=1
-ROBOT_PATH=lerobot/configs/robot/so100_bimanual.yaml
-# ROBOT_PATH=lerobot/configs/robot/so100.yaml
+DISPLAY_CAMERAS=true
+ROBOT_TYPE="so100_bimanual"
 
-python lerobot/scripts/control_robot.py teleoperate \
-    --fps $FPS \
-    --display-cameras $DISPLAY_CAMERAS \
-    --robot-path $ROBOT_PATH
+python lerobot/scripts/control_robot.py \
+    --robot.type=$ROBOT_TYPE \
+    --control.type=teleoperate \
+    --control.fps $FPS \
+    --control.display_cameras $DISPLAY_CAMERAS

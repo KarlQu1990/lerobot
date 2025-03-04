@@ -1,6 +1,6 @@
 #!/bin/bash
-ROBOT_PATH=lerobot/configs/robot/so100_bimanual.yaml
-# ROBOT_PATH=lerobot/configs/robot/so100.yaml
+ROBOT_TYPE="so100_bimanual"
 
-python lerobot/scripts/control_robot.py torque_disable \
-    --robot-path $ROBOT_PATH
+python lerobot/scripts/control_robot.py \
+    --robot.type=$ROBOT_TYPE \
+    --control.type=torque_disable

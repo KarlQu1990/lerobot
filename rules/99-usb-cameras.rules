@@ -1,2 +1,3 @@
-KERNEL=="video[0,2,4,8]*", SUBSYSTEM=="video4linux", ATTRS{idVendor}=="32e6", ATTRS{idProduct}=="9211", SYMLINK+="video_high"
-KERNEL=="video[0,2,4,8]*", SUBSYSTEM=="video4linux", ATTRS{idVendor}=="0c45", ATTRS{idProduct}=="6368", SYMLINK+="video_low"
+KERNEL=="video2", SUBSYSTEM=="video4linux", ATTRS{idVendor}=="32e6", ATTRS{idProduct}=="9211", SYMLINK+="video_high"
+KERNEL=="video0", SUBSYSTEM=="video4linux", ATTRS{idVendor}=="0c45", ATTRS{idProduct}=="6368", SYMLINK+="video_low"
+KERNEL=="video4", SUBSYSTEM=="video4linux", ATTRS{idVendor}=="0c45", ATTRS{idProduct}=="6368", SYMLINK+="video_right_wrist"
