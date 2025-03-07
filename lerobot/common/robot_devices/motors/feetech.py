@@ -461,7 +461,10 @@ class FeetechMotorsBus:
 
                 # Rescale the present position to a nominal range [0, 100] %,
                 # useful for joints with linear motions like Aloha gripper
-                values[i] = (values[i] - start_pos) / (end_pos - start_pos) * 100
+                if start_pos < end_pos:
+                    values[i] = (values[i] - start_pos) / (end_pos - start_pos) * 100
+                else:
+                    values[i] = (start_pos - values[i]) / (start_pos - end_pos) * 100
 
                 if (values[i] < LOWER_BOUND_LINEAR) or (values[i] > UPPER_BOUND_LINEAR):
                     raise JointOutOfRangeError(
@@ -533,7 +536,11 @@ class FeetechMotorsBus:
                 end_pos = self.calibration["end_pos"][calib_idx]
 
                 # Convert from initial range to range [0, 100] in %
-                calib_val = (values[i] - start_pos) / (end_pos - start_pos) * 100
+                if start_pos < end_pos:
+                    calib_val = (values[i] - start_pos) / (end_pos - start_pos) * 100
+                else:
+                    calib_val = (start_pos - values[i]) / (start_pos - end_pos) * 100
+
                 in_range = (calib_val > LOWER_BOUND_LINEAR) and (calib_val < UPPER_BOUND_LINEAR)
 
                 # Solve this inequality to find the factor to shift the range into [0, 100] %
@@ -541,8 +548,13 @@ class FeetechMotorsBus:
                 # values[i] = (values[i] - start_pos + resolution * factor) / (end_pos - start_pos) * 100
                 # 0 <= (values[i] - start_pos + resolution * factor) / (end_pos - start_pos) * 100 <= 100
                 # (start_pos - values[i]) / resolution <= factor <= (end_pos - values[i]) / resolution
-                low_factor = (start_pos - values[i]) / resolution
-                upp_factor = (end_pos - values[i]) / resolution
+
+                if start_pos < end_pos:
+                    low_factor = (start_pos - values[i]) / resolution
+                    upp_factor = (end_pos - values[i]) / resolution
+                else:
+                    low_factor = (values[i] - start_pos) / resolution
+                    upp_factor = (values[i]- end_pos) / resolution                    
 
             if not in_range:
                 # Get first integer between the two bounds

@@ -355,9 +355,11 @@ def replay(
 
 
 @safe_disconnect
-def show_position(robot: Robot, **kwargs):
+def show_position(robot: Robot, cfg: ShowPositionConfig):
     if not robot.is_connected:
         robot.connect()
+
+    robot.torque_disable()
 
     for name, arm in robot.leader_arms.items():
         pos = arm.read("Present_Position")

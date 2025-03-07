@@ -26,8 +26,7 @@ class TensorboardLogger:
         self.cfg = cfg.tensorboard
         self.log_dir = cfg.output_dir
 
-        enable_tensorboard = cfg.get("tensorboard", {}).get("enable", False)
-        if not enable_tensorboard:
+        if not cfg.tensorboard.enable:
             self._tb = None
         else:
             from torch.utils.tensorboard import SummaryWriter
@@ -37,7 +36,7 @@ class TensorboardLogger:
     def log_dict(self, d, step, mode="train"):
         assert mode in {"train", "eval"}
         # TODO(alexander-soare): Add local text log.
-        if self._wandb or self._tb:
+        if self._tb:
             for k, v in d.items():
                 if not isinstance(v, (int, float, str)):
                     logging.warning(
@@ -45,7 +44,5 @@ class TensorboardLogger:
                     )
                     continue
 
-                if self._wandb:
-                    self._wandb.log({f"{mode}/{k}": v}, step=step)
                 if self._tb:
                     self._tb.add_scalar(k, v, step)  

@@ -13,7 +13,8 @@ FPS=30
 WARMUP_TIME_S=5
 EPISODE_TIME_S=90
 RESET_TIME_S=30
-NUM_EPISODES=50
+NUM_EPISODES=30
+RESUME=false
 PRETRAINED_PATH=
 
 if [ -z $PRETRAINED_PATH ]; then
@@ -22,6 +23,7 @@ if [ -z $PRETRAINED_PATH ]; then
     --robot.type=$ROBOT_TYPE \
     --control.type=record \
     --control.root=$DATA_ROOT/$DATASET_NAME \
+    --control.resume=$RESUME \
     --control.fps=$FPS \
     --control.single_task=$TASK_DESC \
     --control.repo_id=$DATASET_NAME \
@@ -37,6 +39,7 @@ else
     --robot.type=$ROBOT_TYPE \
     --control.type=record \
     --control.root=$DATA_ROOT/$DATASET_NAME \
+    --control.resume=$RESUME \
     --control.fps=$FPS \
     --control.single_task=$TASK_DESC \
     --control.repo_id=$DATASET_NAME \

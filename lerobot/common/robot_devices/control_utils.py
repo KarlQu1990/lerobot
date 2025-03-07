@@ -150,7 +150,14 @@ def init_keyboard_listener():
         except Exception as e:
             print(f"Error handling key press: {e}")
 
-    listener = keyboard.Listener(on_press=on_press)
+    
+    def on_release(key):
+        try:
+            print(f"key {key} released.")
+        except Exception as e:
+            print(f"Exception in on_release: {key}")
+
+    listener = keyboard.Listener(on_press=on_press, on_release=on_release)
     listener.start()
 
     return listener, events
@@ -257,7 +264,8 @@ def show_image_observation(observation:dict):
         concat_img[:height, x_offset : x_offset + width, :] = img
         x_offset += width
 
-    cv2.imshow(key, cv2.cvtColor(concat_img, cv2.COLOR_RGB2BGR))
+    cv2.namedWindow("videos", cv2.WINDOW_NORMAL)
+    cv2.imshow("videos", cv2.cvtColor(concat_img, cv2.COLOR_RGB2BGR))
     cv2.waitKey(1)
 
 

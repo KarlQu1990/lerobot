@@ -456,6 +456,10 @@ def run_arm_manual_calibration(arm: MotorsBus, robot_type: str, arm_name: str, a
     rotated_pos = arm.read("Present_Position")
     drive_mode = (rotated_pos < zero_pos).astype(np.int32)
 
+    # NOTE: 对于夹爪而言，闭合后只有一个运动方向，是确定的，不需要区分drive_mode
+    gripper_idx = arm.motor_names.index("gripper")
+    drive_mode[gripper_idx] = 0
+
     # Re-compute homing offset to take into account drive mode
     rotated_drived_pos = apply_drive_mode(rotated_pos, drive_mode)
     homing_offset = rotated_target_pos - rotated_drived_pos
