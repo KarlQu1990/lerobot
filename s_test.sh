@@ -3,7 +3,7 @@ ROBOT_TYPE=so100_bimanual
 FPS=30
 INFERENCE_TIME_S=300
 DEVICE=cuda
-PRETRAINED_PATH=outputs/train/act_so100_bimanual_transfer_3/checkpoints/last/pretrained_model
+PRETRAINED_PATH=outputs/train/act_so100_bimanual_transfer_6/checkpoints/last/pretrained_model
 
 python lerobot/scripts/control_robot.py \
   --robot.type=$ROBOT_TYPE \
