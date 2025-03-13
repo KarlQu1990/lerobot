@@ -7,16 +7,16 @@ fi
 
 ROBOT_TYPE=so100_bimanual
 DATA_ROOT=/home/hhws/projects/robot_datasets
-DATASET_NAME=$HF_USER/so100_bimanual_transfer_7
-TASK_DESC="抓取方块传递给另一个机械臂，然后放到料框里。"
-# DATASET_NAME=$HF_USER/so100_bimanual_clothes_4
-# TASK_DESC="将桌面上的散乱的衣服叠好。"
+# DATASET_NAME=$HF_USER/so100_bimanual_transfer_6
+# TASK_DESC="抓取方块传递给另一个机械臂，然后放到料框里。"
+DATASET_NAME=$HF_USER/so100_bimanual_clothes_5
+TASK_DESC="将桌面上的散乱的衣服叠好。"
 FPS=30
 WARMUP_TIME_S=5
 EPISODE_TIME_S=240
 RESET_TIME_S=30
-NUM_EPISODES=25
-RESUME=false
+NUM_EPISODES=100
+RESUME=true
 PRETRAINED_PATH=
 
 if [ -z $PRETRAINED_PATH ]; then

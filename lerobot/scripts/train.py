@@ -205,6 +205,7 @@ def train(cfg: TrainPipelineConfig):
     )
 
     logging.info("Start offline training on a fixed dataset")
+    start_t = time.time()
     for _ in range(step, cfg.steps):
         start_time = time.perf_counter()
         batch = next(dl_iter)
@@ -290,7 +291,10 @@ def train(cfg: TrainPipelineConfig):
 
     if eval_env:
         eval_env.close()
-    logging.info("End of training")
+
+    end_t = time.time()
+    time_cost = (end_t - start_t) // 3600
+    logging.info(f"End of training, time cost: {time_cost:.2f} hours.")
 
 
 if __name__ == "__main__":
