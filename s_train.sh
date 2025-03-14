@@ -8,8 +8,8 @@ fi
 DATA_ROOT=/home/hhws/projects/robot_datasets
 DATASET_NAMES=$HF_USER/so100_bimanual_clothes_5
 POLICY_NAME=act
-OUTPUT_DIR=outputs/train/act_so100_bimanual_clothes_5
-JOB_NAME=act_so100_bimanual_clothes_5
+OUTPUT_DIR=outputs/train/act_so100_bimanual_clothes_6
+JOB_NAME=act_so100_bimanual_clothes_6
 DEVICE=cuda
 STEPS=300000
 SAVE_FREQ=20000
