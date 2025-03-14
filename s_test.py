@@ -31,7 +31,7 @@ if __name__ == "__main__":
     USBDeviceManager().load()
 
     robot_type = "so100_bimanual"
-    pretrained_path = "outputs/train/act_so100_bimanual_transfer_3/checkpoints/last/pretrained_model"
+    pretrained_path = "outputs/train/act_so100_bimanual_clothes_4/checkpoints/last/pretrained_model"
     fps = 30
     inference_time_s = 120
     device = "cuda"

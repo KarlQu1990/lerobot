@@ -471,6 +471,10 @@ class FeetechMotorsBus:
                 # Rescale the present position to a nominal range [0, 100] %,
                 # useful for joints with linear motions like Aloha gripper
                 values[i] = (values[i] - start_pos) / (end_pos - start_pos) * 100
+                if start_pos < end_pos:
+                    values[i] = (values[i] - start_pos) / (end_pos - start_pos) * 100
+                else:
+                    values[i] = (start_pos - values[i]) / (end_pos - start_pos) * 100
 
                 if (values[i] < LOWER_BOUND_LINEAR) or (values[i] > UPPER_BOUND_LINEAR):
                     raise JointOutOfRangeError(

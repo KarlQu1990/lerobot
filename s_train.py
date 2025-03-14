@@ -41,17 +41,11 @@ if __name__ == "__main__":
     inference_time_s = 120
     device = "cuda"
     policy_type = "act"
-    output_dir = "outputs/train/act_so100_bimanual_transfer_1"
+    output_dir = "outputs/train/act_so100_bimanual_transfer_4"
     use_amp = True
-    seed = 1234
     batch_size = 8
     steps = 100_000
-    eval_freq = 20_000
-    log_freq = 200
     save_freq = 20_000
-    optimizer_type = "adam"
-    lr = 0.001
-
     repo_id = f"{username}/{dataset_name}"
     # DATASET_NAMES=$HF_USER/so100_bimanual_transfer_3
     # POLICY_NAME=act_so100_bimanual_real
@@ -71,7 +65,13 @@ if __name__ == "__main__":
     # RESUME=false
 
     config = TrainPipelineConfig(
-        fps=fps, inference_time_s=inference_time_s, pretrained_policy_name_or_path=pretrained_path, device=device
+        fps=fps,
+        inference_time_s=inference_time_s,
+        pretrained_policy_name_or_path=pretrained_path,
+        device=device,
+        steps=steps,
+        save_freq=save_freq,
+        batch_size=batch_size,
     )
 
     train(robot, config)

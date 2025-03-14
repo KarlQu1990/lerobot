@@ -12,9 +12,7 @@ from lerobot.common.robot_devices.motors.feetech import (
 )
 from lerobot.common.robot_devices.motors.utils import MotorsBus
 
-URL_TEMPLATE = (
-    "https://raw.githubusercontent.com/huggingface/lerobot/main/media/{robot}/{arm}_{position}.webp"
-)
+URL_TEMPLATE = "https://raw.githubusercontent.com/huggingface/lerobot/main/media/{robot}/{arm}_{position}.webp"
 
 # The following positions are provided in nominal degree range ]-180, +180[
 # For more info on these constants, see comments in the code where they get used.
@@ -83,25 +81,17 @@ def move_to_calibrate(
     initial_pos = arm.read("Present_Position", motor_name)
 
     if positive_first:
-        p_present_pos = move_until_block(
-            arm, motor_name, positive_direction=True, while_move_hook=while_move_hook
-        )
+        p_present_pos = move_until_block(arm, motor_name, positive_direction=True, while_move_hook=while_move_hook)
     else:
-        n_present_pos = move_until_block(
-            arm, motor_name, positive_direction=False, while_move_hook=while_move_hook
-        )
+        n_present_pos = move_until_block(arm, motor_name, positive_direction=False, while_move_hook=while_move_hook)
 
     if in_between_move_hook is not None:
         in_between_move_hook()
 
     if positive_first:
-        n_present_pos = move_until_block(
-            arm, motor_name, positive_direction=False, while_move_hook=while_move_hook
-        )
+        n_present_pos = move_until_block(arm, motor_name, positive_direction=False, while_move_hook=while_move_hook)
     else:
-        p_present_pos = move_until_block(
-            arm, motor_name, positive_direction=True, while_move_hook=while_move_hook
-        )
+        p_present_pos = move_until_block(arm, motor_name, positive_direction=True, while_move_hook=while_move_hook)
 
     zero_pos = (n_present_pos + p_present_pos) / 2
 
@@ -455,6 +445,10 @@ def run_arm_manual_calibration(arm: MotorsBus, robot_type: str, arm_name: str, a
     # Drive mode indicates if the motor rotation direction should be inverted (=1) or not (=0).
     rotated_pos = arm.read("Present_Position")
     drive_mode = (rotated_pos < zero_pos).astype(np.int32)
+
+    # NOTE: 对于夹爪而言，闭合后只有一个运动方向，是确定的，不需要区分drive_mode
+    gripper_idx = arm.motor_names.index("gripper")
+    drive_mode[gripper_idx] = 0
 
     # Re-compute homing offset to take into account drive mode
     rotated_drived_pos = apply_drive_mode(rotated_pos, drive_mode)
