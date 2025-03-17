@@ -492,12 +492,12 @@ class So100BimanualRobotConfig(ManipulatorRobotConfig):
                 width=640,
                 height=480,
             ),
-            "low": OpenCVCameraConfig(
-                camera_index="low",
-                fps=30,
-                width=640,
-                height=480,
-            ),
+            # "low": OpenCVCameraConfig(
+            #     camera_index="low",
+            #     fps=30,
+            #     width=640,
+            #     height=480,
+            # ),
             "left_wrist": OpenCVCameraConfig(
                 camera_index="left_wrist",
                 fps=30,

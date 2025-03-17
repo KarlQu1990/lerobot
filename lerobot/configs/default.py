@@ -47,6 +47,10 @@ class WandBConfig:
     entity: str | None = None
     notes: str | None = None
 
+@dataclass
+class TensorboardConfig:
+    enable: bool = True
+
 
 @dataclass
 class TensorboardConfig:

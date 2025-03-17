@@ -6,13 +6,13 @@ import math
 import logging
 import time
 import traceback
-import tqdm
+import cv2
 import numpy as np
+import tqdm
 from contextlib import nullcontext
 from copy import copy
 from functools import cache
 
-import cv2
 import torch
 from deepdiff import DeepDiff
 from termcolor import colored
@@ -257,7 +257,8 @@ def show_image_observation(observation: dict):
         concat_img[:height, x_offset : x_offset + width, :] = img
         x_offset += width
 
-    cv2.imshow(key, cv2.cvtColor(concat_img, cv2.COLOR_RGB2BGR))
+    cv2.namedWindow("videos", cv2.WINDOW_NORMAL)
+    cv2.imshow("videos", cv2.cvtColor(concat_img, cv2.COLOR_RGB2BGR))
     cv2.waitKey(1)
 
 
@@ -283,7 +284,7 @@ def control_loop(
         events = {"exit_early": False}
 
     if control_time_s is None:
-        control_time_s = float("inf")
+        control_time_s = 1e5
 
     if teleoperate and policy is not None:
         raise ValueError("When `teleoperate` is True, `policy` should be None.")
@@ -298,11 +299,11 @@ def control_loop(
         device = get_safe_torch_device(device)
 
     timestamp = 0
+    timestamp_int = 0
     start_episode_t = time.perf_counter()
     log_interval = 5
     last_log_t = 0
-
-    with tqdm.tqdm(total=control_time_s, desc="Controling", bar_format="{n:.3f}") as pbar:
+    with tqdm.tqdm(total=control_time_s, desc="视频进度") as pbar:
         while timestamp < control_time_s:
             start_loop_t = time.perf_counter()
 
@@ -334,12 +335,17 @@ def control_loop(
                 log_control_info(robot, dt_s, fps=fps)
                 last_log_t = time.perf_counter()
 
-            pbar.update(dt_s)
-
             timestamp = time.perf_counter() - start_episode_t
+            if int(timestamp) > timestamp_int:
+                timestamp_int = int(timestamp)
+                pbar.update(1)
+
             if events["exit_early"]:
                 events["exit_early"] = False
                 break
+
+        if timestamp_int < control_time_s:
+            pbar.update(1)
 
 
 def reset_environment(robot, events, reset_time_s, fps):

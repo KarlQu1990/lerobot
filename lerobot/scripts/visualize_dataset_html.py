@@ -83,6 +83,7 @@ def run_server(
 ):
     app = Flask(__name__, static_folder=static_folder.resolve(), template_folder=template_folder.resolve())
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0  # specifying not to cache
+    print("########## static_folder:", static_folder.resolve())
 
     @app.route("/")
     def hommepage(dataset=dataset):
@@ -161,20 +162,14 @@ def run_server(
         episode_data_csv_str, columns = get_episode_data(dataset, episode_id)
         dataset_info = {
             "repo_id": f"{dataset_namespace}/{dataset_name}",
-            "num_samples": dataset.num_frames
-            if isinstance(dataset, LeRobotDataset)
-            else dataset.total_frames,
-            "num_episodes": dataset.num_episodes
-            if isinstance(dataset, LeRobotDataset)
-            else dataset.total_episodes,
+            "num_samples": dataset.num_frames if isinstance(dataset, LeRobotDataset) else dataset.total_frames,
+            "num_episodes": dataset.num_episodes if isinstance(dataset, LeRobotDataset) else dataset.total_episodes,
             "fps": dataset.fps,
         }
         if isinstance(dataset, LeRobotDataset):
-            video_paths = [
-                dataset.meta.get_video_file_path(episode_id, key) for key in dataset.meta.video_keys
-            ]
+            video_paths = [dataset.meta.get_video_file_path(episode_id, key) for key in dataset.meta.video_keys]
             videos_info = [
-                {"url": url_for("static", filename=video_path), "filename": video_path.parent.name}
+                {"url": url_for("static", filename=video_path.as_posix()), "filename": video_path.parent.name}
                 for video_path in video_paths
             ]
             tasks = dataset.meta.episodes[episode_id]["tasks"]
@@ -261,11 +256,7 @@ def get_episode_data(dataset: LeRobotDataset | IterableNamespace, episode_index)
     if isinstance(dataset, LeRobotDataset):
         from_idx = dataset.episode_data_index["from"][episode_index]
         to_idx = dataset.episode_data_index["to"][episode_index]
-        data = (
-            dataset.hf_dataset.select(range(from_idx, to_idx))
-            .select_columns(selected_columns)
-            .with_format("pandas")
-        )
+        data = dataset.hf_dataset.select(range(from_idx, to_idx)).select_columns(selected_columns).with_format("pandas")
     else:
         repo_id = dataset.repo_id
 
@@ -275,12 +266,10 @@ def get_episode_data(dataset: LeRobotDataset | IterableNamespace, episode_index)
         df = pd.read_parquet(url)
         data = df[selected_columns]  # Select specific columns
 
-    rows = np.hstack(
-        (
-            np.expand_dims(data["timestamp"], axis=1),
-            *[np.vstack(data[col]) for col in selected_columns[1:]],
-        )
-    ).tolist()
+    rows = np.hstack((
+        np.expand_dims(data["timestamp"], axis=1),
+        *[np.vstack(data[col]) for col in selected_columns[1:]],
+    )).tolist()
 
     # Convert data to CSV string
     csv_buffer = StringIO()
@@ -297,10 +286,7 @@ def get_episode_data(dataset: LeRobotDataset | IterableNamespace, episode_index)
 def get_episode_video_paths(dataset: LeRobotDataset, ep_index: int) -> list[str]:
     # get first frame of episode (hack to get video_path of the episode)
     first_frame_idx = dataset.episode_data_index["from"][ep_index].item()
-    return [
-        dataset.hf_dataset.select_columns(key)[first_frame_idx][key]["path"]
-        for key in dataset.meta.video_keys
-    ]
+    return [dataset.hf_dataset.select_columns(key)[first_frame_idx][key]["path"] for key in dataset.meta.video_keys]
 
 
 def get_episode_language_instruction(dataset: LeRobotDataset, ep_index: int) -> list[str]:
@@ -318,9 +304,7 @@ def get_episode_language_instruction(dataset: LeRobotDataset, ep_index: int) -> 
 
 
 def get_dataset_info(repo_id: str) -> IterableNamespace:
-    response = requests.get(
-        f"https://huggingface.co/datasets/{repo_id}/resolve/main/meta/info.json", timeout=5
-    )
+    response = requests.get(f"https://huggingface.co/datasets/{repo_id}/resolve/main/meta/info.json", timeout=5)
     response.raise_for_status()  # Raises an HTTPError for bad responses
     dataset_info = response.json()
     dataset_info["repo_id"] = repo_id

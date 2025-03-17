@@ -121,6 +121,8 @@ python lerobot/scripts/control_robot.py \
 ```
 """
 
+import sys
+import signal
 import logging
 import time
 from dataclasses import asdict
@@ -157,10 +159,23 @@ from lerobot.common.robot_devices.utils import busy_wait, safe_disconnect
 from lerobot.common.utils.utils import has_method, init_logging, log_say
 from lerobot.configs import parser
 from lerobot.common.robot_devices.control_utils import is_headless
+from lerobot.common.utils.usb_utils import USBDeviceManager
 
 ########################################################################################
 # Control modes
 ########################################################################################
+robot: Robot = None
+
+
+def terminate_handler(signum, frame):
+    global robot
+    print(f"Receive teminate signal: {signum}")
+
+    if robot and robot.is_connected:
+        robot.disconnect()
+
+    print("Exit now.")
+    sys.exit(0)
 
 
 @safe_disconnect
@@ -275,7 +290,7 @@ def record(
     if has_method(robot, "teleop_safety_stop"):
         robot.teleop_safety_stop()
 
-    recorded_episodes = 0
+    recorded_episodes = dataset.num_episodes
     while True:
         if recorded_episodes >= cfg.num_episodes:
             break
@@ -355,9 +370,11 @@ def replay(
 
 
 @safe_disconnect
-def show_position(robot: Robot, **kwargs):
+def show_position(robot: Robot, cfg: ShowPositionConfig):
     if not robot.is_connected:
         robot.connect()
+
+    robot.torque_disable()
 
     for name, arm in robot.leader_arms.items():
         pos = arm.read("Present_Position")
@@ -371,26 +388,20 @@ def show_position(robot: Robot, **kwargs):
 
 
 @safe_disconnect
-def test_policy(
-    robot: Robot,
-    fps: int | None = None,
-    inference_time_s: int = 60,
-    device: str = "cuda",
-    pretrained_policy_name_or_path: str | None = None,
-):
+def test_policy(robot: Robot, cfg: TestPolicyConfig):
     import torch
 
     from lerobot.common.policies.act.modeling_act import ACTPolicy
 
-    if not pretrained_policy_name_or_path:
+    if not cfg.pretrained_policy_name_or_path:
         logging.error("预训练权重不能为空。")
         return
 
     if not robot.is_connected:
         robot.connect()
 
-    policy = ACTPolicy.from_pretrained(pretrained_policy_name_or_path)
-    policy.to(device)
+    policy = ACTPolicy.from_pretrained(cfg.pretrained_policy_name_or_path)
+    policy.to(cfg.device)
 
     time_cost = 0
 
@@ -410,7 +421,7 @@ def test_policy(
                 observation[name] = observation[name].type(torch.float32) / 255
                 observation[name] = observation[name].permute(2, 0, 1).contiguous()
             observation[name] = observation[name].unsqueeze(0)
-            observation[name] = observation[name].to(device)
+            observation[name] = observation[name].to(cfg.device)
 
         # Compute the next action with the policy
         # based on the current observation
@@ -425,16 +436,16 @@ def test_policy(
         dt_s = time.perf_counter() - start_time
         print("FPS: ", 1 / dt_s)
         time_cost += dt_s
-        if time_cost > inference_time_s:
+        if time_cost > cfg.inference_time_s:
             break
 
-        elapse = 1 / fps - dt_s
+        elapse = 1 / cfg.fps - dt_s
         if elapse > 0:
             busy_wait(elapse)
 
 
 @safe_disconnect
-def torque_disable(robot: Robot):
+def torque_disable(robot: Robot, cfg: TorqueDisableConfig):
     if not robot.is_connected:
         robot.connect()
 
@@ -446,6 +457,7 @@ def control_robot(cfg: ControlPipelineConfig):
     init_logging()
     logging.info(pformat(asdict(cfg)))
 
+    global robot
     robot = make_robot_from_config(cfg.robot)
 
     if isinstance(cfg.control, CalibrateControlConfig):
@@ -474,4 +486,8 @@ def control_robot(cfg: ControlPipelineConfig):
 
 
 if __name__ == "__main__":
+    signal.signal(signal.SIGINT, terminate_handler)
+    signal.signal(signal.SIGBREAK, terminate_handler)
+
+    USBDeviceManager().load()
     control_robot()

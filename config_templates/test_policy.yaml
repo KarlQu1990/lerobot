@@ -1,0 +1,8 @@
+robot:
+  type: "so100_bimanual"
+control:
+  type: test_policy
+  fps: 30
+  inference_time_s: 300
+  device: cuda
+  pretrained_policy_name_or_path: outputs/train/act_so100_bimanual_clothes_5/checkpoints/last/pretrained_model

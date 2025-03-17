@@ -1,7 +1,6 @@
 import argparse
 import logging
 import math
-import subprocess
 import sys
 
 import cv2

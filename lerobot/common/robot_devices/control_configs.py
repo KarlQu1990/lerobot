@@ -159,7 +159,7 @@ class TorqueDisableConfig(ControlConfig):
 @ControlConfig.register_subclass("test_policy")
 @dataclass
 class TestPolicyConfig(ControlConfig):
-    fps: int | None = None
+    fps: int = 30
     inference_time_s: int = 60
     device: str = "cuda"
     pretrained_policy_name_or_path: str | None = None

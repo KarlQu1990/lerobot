@@ -144,7 +144,7 @@ def visualize_dataset(
 
     logging.info("Logging to Rerun")
 
-    for batch in tqdm.tqdm(dataloader, total=len(dataloader)):
+    for batch in tqdm.tqdm(dataloader, total=len(dataloader), mininterval=0):
         # iterate over the batch
         for i in range(len(batch["index"])):
             rr.set_time_sequence("frame_index", batch["frame_index"][i].item())

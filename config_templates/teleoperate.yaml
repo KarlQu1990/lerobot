@@ -1,0 +1,6 @@
+robot:
+  type: "so100_bimanual"
+control:
+  type: teleoprate
+  fps: 30
+  display_cameras: true

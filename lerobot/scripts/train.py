@@ -48,9 +48,26 @@ from lerobot.common.utils.utils import (
     init_logging,
 )
 from lerobot.common.utils.wandb_utils import WandBLogger
+from lerobot.common.utils.tensorboard_utils import TensorboardLogger
 from lerobot.configs import parser
 from lerobot.configs.train import TrainPipelineConfig
 from lerobot.scripts.eval import eval_policy
+
+
+dataloader: torch.utils.data.DataLoader = None
+
+
+def terminate_handler(signum, frame):
+    global dataloader
+    print(f"Receive teminate signal: {signum}")
+
+    if dataloader and hasattr(dataloader._iterator, "_shutdown_workers"):
+        dataloader._iterator._shutdown_workers()
+
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+    print("Exit now.")
 
 
 def update_policy(
@@ -115,6 +132,9 @@ def train(cfg: TrainPipelineConfig):
     else:
         wandb_logger = None
         logging.info(colored("Logs will be saved locally.", "yellow", attrs=["bold"]))
+
+    if cfg.tensorboard.enable:
+        tensorboard_logger = TensorboardLogger(cfg)
 
     if cfg.seed is not None:
         set_seed(cfg.seed)
@@ -201,6 +221,7 @@ def train(cfg: TrainPipelineConfig):
     )
 
     logging.info("Start offline training on a fixed dataset")
+    start_t = time.time()
     for _ in range(step, cfg.steps):
         start_time = time.perf_counter()
         batch = next(dl_iter)
@@ -231,11 +252,16 @@ def train(cfg: TrainPipelineConfig):
 
         if is_log_step:
             logging.info(train_tracker)
+            log_dict = train_tracker.to_dict()
+            if output_dict:
+                log_dict.update(output_dict)
+
             if wandb_logger:
-                wandb_log_dict = train_tracker.to_dict()
-                if output_dict:
-                    wandb_log_dict.update(output_dict)
-                wandb_logger.log_dict(wandb_log_dict, step)
+                wandb_logger.log_dict(log_dict, step)
+
+            if tensorboard_logger:
+                tensorboard_logger.log_dict(log_dict, step)
+
             train_tracker.reset_averages()
 
         if cfg.save_checkpoint and is_saving_step:
@@ -271,14 +297,20 @@ def train(cfg: TrainPipelineConfig):
             eval_tracker.avg_sum_reward = eval_info["aggregated"].pop("avg_sum_reward")
             eval_tracker.pc_success = eval_info["aggregated"].pop("pc_success")
             logging.info(eval_tracker)
+
+            log_dict = {**eval_tracker.to_dict(), **eval_info}
             if wandb_logger:
-                wandb_log_dict = {**eval_tracker.to_dict(), **eval_info}
-                wandb_logger.log_dict(wandb_log_dict, step, mode="eval")
+                wandb_logger.log_dict(log_dict, step, mode="eval")
                 wandb_logger.log_video(eval_info["video_paths"][0], step, mode="eval")
+            if tensorboard_logger:
+                tensorboard_logger.log_dict(log_dict, step, mode="eval")
 
     if eval_env:
         eval_env.close()
-    logging.info("End of training")
+
+    end_t = time.time()
+    time_cost = (end_t - start_t) // 3600
+    logging.info(f"End of training, time cost: {time_cost:.2f} hours.")
 
 
 if __name__ == "__main__":

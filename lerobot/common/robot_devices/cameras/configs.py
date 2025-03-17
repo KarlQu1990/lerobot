@@ -49,6 +49,12 @@ class OpenCVCameraConfig(CameraConfig):
             raise ValueError(f"`pixel_format` must be in ['YUYV', 'MJPG'] (got {self.rotation})")
 
 
+        if self.pixel_format not in ["YUYV", "MJPG"]:
+            raise ValueError(f"`pixel_format` must be in ['YUYV', 'MJPG'] (got {self.rotation})")
+        
+
+
+
 @CameraConfig.register_subclass("intelrealsense")
 @dataclass
 class IntelRealSenseCameraConfig(CameraConfig):

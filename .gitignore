@@ -16,3 +16,4 @@ outputs
 __pycache__
 
 .cache/calibration/
+configs/

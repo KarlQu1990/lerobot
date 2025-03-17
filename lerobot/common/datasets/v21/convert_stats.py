@@ -34,9 +34,7 @@ def convert_episode_stats(dataset: LeRobotDataset, ep_idx: int):
         ep_stats[key] = get_feature_stats(ep_ft_data, axis=axes_to_reduce, keepdims=keepdims)
 
         if ft["dtype"] in ["image", "video"]:  # remove batch dim
-            ep_stats[key] = {
-                k: v if k == "count" else np.squeeze(v, axis=0) for k, v in ep_stats[key].items()
-            }
+            ep_stats[key] = {k: v if k == "count" else np.squeeze(v, axis=0) for k, v in ep_stats[key].items()}
 
     dataset.meta.episodes_stats[ep_idx] = ep_stats
 
@@ -48,16 +46,15 @@ def convert_stats(dataset: LeRobotDataset, num_workers: int = 0):
     if num_workers > 0:
         with ThreadPoolExecutor(max_workers=num_workers) as executor:
             futures = {
-                executor.submit(convert_episode_stats, dataset, ep_idx): ep_idx
-                for ep_idx in range(total_episodes)
+                executor.submit(convert_episode_stats, dataset, ep_idx): ep_idx for ep_idx in range(total_episodes)
             }
-            for future in tqdm(as_completed(futures), total=total_episodes):
+            for future in tqdm(as_completed(futures), total=total_episodes, mininterval=0):
                 future.result()
     else:
-        for ep_idx in tqdm(range(total_episodes)):
+        for ep_idx in tqdm(range(total_episodes), mininterval=0):
             convert_episode_stats(dataset, ep_idx)
 
-    for ep_idx in tqdm(range(total_episodes)):
+    for ep_idx in tqdm(range(total_episodes), mininterval=0):
         write_episode_stats(ep_idx, dataset.meta.episodes_stats[ep_idx], dataset.root)
 
 
@@ -80,6 +77,4 @@ def check_aggregate_stats(
         for stat, val in agg_stats[key].items():
             if key in reference_stats and stat in reference_stats[key]:
                 err_msg = f"feature='{key}' stats='{stat}'"
-                np.testing.assert_allclose(
-                    val, reference_stats[key][stat], rtol=rtol, atol=atol, err_msg=err_msg
-                )
+                np.testing.assert_allclose(val, reference_stats[key][stat], rtol=rtol, atol=atol, err_msg=err_msg)
