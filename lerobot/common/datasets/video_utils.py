@@ -28,19 +28,14 @@ import torch
 import torchvision
 from datasets.features.features import register_feature
 from PIL import Image
-<<<<<<< HEAD
-=======
 
 
 def get_safe_default_codec():
     if importlib.util.find_spec("torchcodec"):
         return "torchcodec"
     else:
-        logging.warning(
-            "'torchcodec' is not available in your platform, falling back to 'pyav' as a default decoder"
-        )
+        logging.warning("'torchcodec' is not available in your platform, falling back to 'pyav' as a default decoder")
         return "pyav"
->>>>>>> main-origin
 
 
 def decode_video_frames(
@@ -66,8 +61,6 @@ def decode_video_frames(
     if backend is None:
         backend = get_safe_default_codec()
     if backend == "torchcodec":
-        from torchcodec.decoders import VideoDecoder
-
         return decode_video_frames_torchcodec(video_path, timestamps, tolerance_s)
     elif backend in ["pyav", "video_reader"]:
         return decode_video_frames_torchvision(video_path, timestamps, tolerance_s, backend)
