@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import importlib
 import json
 import logging
 import subprocess
@@ -27,13 +28,26 @@ import torch
 import torchvision
 from datasets.features.features import register_feature
 from PIL import Image
+<<<<<<< HEAD
+=======
+
+
+def get_safe_default_codec():
+    if importlib.util.find_spec("torchcodec"):
+        return "torchcodec"
+    else:
+        logging.warning(
+            "'torchcodec' is not available in your platform, falling back to 'pyav' as a default decoder"
+        )
+        return "pyav"
+>>>>>>> main-origin
 
 
 def decode_video_frames(
     video_path: Path | str,
     timestamps: list[float],
     tolerance_s: float,
-    backend: str = "torchcodec",
+    backend: str | None = None,
 ) -> torch.Tensor:
     """
     Decodes video frames using the specified backend.
@@ -42,13 +56,15 @@ def decode_video_frames(
         video_path (Path): Path to the video file.
         timestamps (list[float]): List of timestamps to extract frames.
         tolerance_s (float): Allowed deviation in seconds for frame retrieval.
-        backend (str, optional): Backend to use for decoding. Defaults to "torchcodec".
+        backend (str, optional): Backend to use for decoding. Defaults to "torchcodec" when available in the platform; otherwise, defaults to "pyav"..
 
     Returns:
         torch.Tensor: Decoded frames.
 
     Currently supports torchcodec on cpu and pyav.
     """
+    if backend is None:
+        backend = get_safe_default_codec()
     if backend == "torchcodec":
         from torchcodec.decoders import VideoDecoder
 
@@ -174,6 +190,12 @@ def decode_video_frames_torchcodec(
     and all subsequent frames until reaching the requested frame. The number of key frames in a video
     can be adjusted during encoding to take into account decoding time and video size in bytes.
     """
+
+    if importlib.util.find_spec("torchcodec"):
+        from torchcodec.decoders import VideoDecoder
+    else:
+        raise ImportError("torchcodec is required but not available.")
+
     # initialize video decoder
     decoder = VideoDecoder(video_path, device=device, seek_mode="approximate")
     loaded_frames = []
