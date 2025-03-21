@@ -8,18 +8,18 @@ fi
 DATA_ROOT=/home/hhws/projects/robot_datasets
 #DATASET_NAMES=$HF_USER/so100_bimanual_clothes_5
 DATASET_NAMES=$HF_USER/so100_bimanual_transfer_6
-POLICY_NAME=pi0
-#POLICY_NAME=act
-OUTPUT_DIR=outputs/train/pi0_so100_bimanual_transfer_1
-JOB_NAME=pi0_so100_bimanual_clothes_6
-DEVICE=cuda
-STEPS=20000
-SAVE_FREQ=5000
+POLICY_NAME=act
+#POLICY_NAME=pi0
+OUTPUT_DIR=outputs/train/act_so100_bimanual_transfer_8
+JOB_NAME=act_so100_bimanual_clothes_6
+STEPS=100000
+SAVE_FREQ=10000
 BATCH_SIZE=8
 ENABLE_IMAGE_TRANSFORM=false
 RESUME=false
 # PRETRAINED_PATH=outputs/train/act_so100_bimanual_transfer_5/checkpoints/last/pretrained_model
-PRETRAINED_PATH=lerobot/pi0
+# PRETRAINED_PATH=lerobot/pi0
+PRETRAINED_PATH=
 
 if [ -z $PRETRAINED_PATH ]; then
   if [ $RESUME = true ]; then
@@ -39,7 +39,6 @@ if [ -z $PRETRAINED_PATH ]; then
       --policy.type=$POLICY_NAME \
       --output_dir=$OUTPUT_DIR \
       --job_name=$JOB_NAME \
-      --device=$DEVICE \
       --batch_size=$BATCH_SIZE \
       --steps=$STEPS \
       --save_freq=$SAVE_FREQ
@@ -53,7 +52,6 @@ else
     --policy.path=$PRETRAINED_PATH \
     --output_dir=$OUTPUT_DIR \
     --job_name=$JOB_NAME \
-    --device=$DEVICE \
     --batch_size=$BATCH_SIZE \
     --steps=$STEPS \
     --save_freq=$SAVE_FREQ
