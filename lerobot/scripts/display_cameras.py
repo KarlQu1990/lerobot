@@ -6,7 +6,7 @@ import sys
 import cv2
 import numpy as np
 
-from lerobot.common.robot_devices.cameras.opencv import OpenCVCamera, find_cameras
+from lerobot.common.robot_devices.cameras.opencv import OpenCVCamera, OpenCVCameraConfig, find_cameras
 
 FORMAT = "%(asctime)s %(message)s"
 logging.basicConfig(format=FORMAT, level=logging.INFO)
@@ -33,9 +33,11 @@ def main(fps: str, pixel_format: str, color_mode: str):
         col = i % cols
 
         idx = info["index"]
-        camera = OpenCVCamera(
+
+        cfg = OpenCVCameraConfig(
             idx, width=width, height=height, fps=fps, color_mode=color_mode, pixel_format=pixel_format
         )
+        camera = OpenCVCamera(cfg)
         try:
             camera.connect()
         except Exception as e:

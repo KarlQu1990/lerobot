@@ -83,7 +83,6 @@ def run_server(
 ):
     app = Flask(__name__, static_folder=static_folder.resolve(), template_folder=template_folder.resolve())
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0  # specifying not to cache
-    print("########## static_folder:", static_folder.resolve())
 
     @app.route("/")
     def hommepage(dataset=dataset):
@@ -348,6 +347,12 @@ def visualize_dataset_html(
 
     static_dir = output_dir / "static"
     static_dir.mkdir(parents=True, exist_ok=True)
+
+    assets_dir = static_dir / "assets"
+    if not assets_dir.exists():
+        raw_asset_dir = Path(__file__).parent / "assets"
+        for f in raw_asset_dir.iterdir():
+            shutil.copy2(f, static_dir)
 
     if dataset is None:
         if serve:
