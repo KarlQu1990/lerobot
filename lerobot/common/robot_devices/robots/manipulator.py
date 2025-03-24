@@ -453,14 +453,14 @@ class ManipulatorRobot:
             self.follower_arms[name].write("Maximum_Acceleration", 50)
             self.follower_arms[name].write("Acceleration", 50)
         
-        for name in self.leader_arms:
-            self.leader_arms[name].write("Mode", 0)
-            self.leader_arms[name].write("P_Coefficient", 32)
-            self.leader_arms[name].write("I_Coefficient", 0)
-            self.leader_arms[name].write("D_Coefficient", 32)
-            self.leader_arms[name].write("Lock", 0)
-            self.leader_arms[name].write("Maximum_Acceleration", 254)
-            self.leader_arms[name].write("Acceleration", 0)
+        # for name in self.leader_arms:
+        #     self.leader_arms[name].write("Mode", 0)
+        #     self.leader_arms[name].write("P_Coefficient", 32)
+        #     self.leader_arms[name].write("I_Coefficient", 0)
+        #     self.leader_arms[name].write("D_Coefficient", 32)
+        #     self.leader_arms[name].write("Lock", 0)
+        #     self.leader_arms[name].write("Maximum_Acceleration", 254)
+        #     self.leader_arms[name].write("Acceleration", 0)
 
 
     def teleop_step(self, record_data=False) -> None | tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]:

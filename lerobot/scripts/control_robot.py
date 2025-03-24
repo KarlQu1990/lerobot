@@ -390,7 +390,9 @@ def test_policy(
 ):
     import torch
 
-    from lerobot.common.policies.act.modeling_act import ACTPolicy
+    from lerobot.common.policies.factory import get_policy_class
+
+    policy_cls = get_policy_class(cfg.name)
 
     if not cfg.pretrained_policy_name_or_path:
         logging.error("预训练权重不能为空。")
@@ -399,7 +401,7 @@ def test_policy(
     if not robot.is_connected:
         robot.connect()
 
-    policy = ACTPolicy.from_pretrained(cfg.pretrained_policy_name_or_path)
+    policy = policy_cls.from_pretrained(cfg.pretrained_policy_name_or_path)
     policy.to(cfg.device)
 
     time_cost = 0

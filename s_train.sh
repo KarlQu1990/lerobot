@@ -8,10 +8,10 @@ fi
 DATA_ROOT=/home/hhws/projects/robot_datasets
 #DATASET_NAMES=$HF_USER/so100_bimanual_clothes_5
 DATASET_NAMES=$HF_USER/so100_bimanual_transfer_6
-POLICY_NAME=act
+POLICY_NAME=diffusion
 #POLICY_NAME=pi0
-OUTPUT_DIR=outputs/train/act_so100_bimanual_transfer_8
-JOB_NAME=act_so100_bimanual_clothes_6
+OUTPUT_DIR=outputs/train/difussion_so100_bimanual_transfer_1
+JOB_NAME=difussion_so100_bimanual_clothes_6
 STEPS=100000
 SAVE_FREQ=10000
 BATCH_SIZE=8
