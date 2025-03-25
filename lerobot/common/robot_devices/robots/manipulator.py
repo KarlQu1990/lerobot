@@ -438,29 +438,38 @@ class ManipulatorRobot:
 
     def set_so100_robot_preset(self):
         for name in self.follower_arms:
-            # Mode=0 for Position Control
-            self.follower_arms[name].write("Mode", 0)
-            # Set P_Coefficient to lower value to avoid shakiness (Default is 32)
-            self.follower_arms[name].write("P_Coefficient", 6)
-            # Set I_Coefficient and D_Coefficient to default value 0 and 32
-            self.follower_arms[name].write("I_Coefficient", 0)
-            self.follower_arms[name].write("D_Coefficient", 1)
-            # Close the write lock so that Maximum_Acceleration gets written to EPROM address,
-            # which is mandatory for Maximum_Acceleration to take effect after rebooting.
-            self.follower_arms[name].write("Lock", 0)
-            # Set Maximum_Acceleration to 254 to speedup acceleration and deceleration of
-            # the motors. Note: this configuration is not in the official STS3215 Memory Table
-            self.follower_arms[name].write("Maximum_Acceleration", 50)
-            self.follower_arms[name].write("Acceleration", 50)
+            if self.config.record:
+                # Mode=0 for Position Control
+                self.follower_arms[name].write("Mode", 0)
+                # Set P_Coefficient to lower value to avoid shakiness (Default is 32)
+                self.follower_arms[name].write("P_Coefficient", 16)
+                # Set I_Coefficient and D_Coefficient to default value 0 and 32
+                self.follower_arms[name].write("I_Coefficient", 0)
+                self.follower_arms[name].write("D_Coefficient", 32)
+                # Close the write lock so that Maximum_Acceleration gets written to EPROM address,
+                # which is mandatory for Maximum_Acceleration to take effect after rebooting.
+                self.follower_arms[name].write("Lock", 0)
+                # Set Maximum_Acceleration to 254 to speedup acceleration and deceleration of
+                # the motors. Note: this configuration is not in the official STS3215 Memory Table
+                self.follower_arms[name].write("Maximum_Acceleration", 254)
+                self.follower_arms[name].write("Acceleration", 254)
+            else:
+                self.follower_arms[name].write("Mode", 0)
+                self.follower_arms[name].write("P_Coefficient", 8)
+                self.follower_arms[name].write("I_Coefficient", 0)
+                self.follower_arms[name].write("D_Coefficient", 1)
+                self.follower_arms[name].write("Lock", 0)
+                self.follower_arms[name].write("Maximum_Acceleration", 50)
+                self.follower_arms[name].write("Acceleration", 50)
 
-        for name in self.leader_arms:
-            self.leader_arms[name].write("Mode", 0)
-            self.leader_arms[name].write("P_Coefficient", 32)
-            self.leader_arms[name].write("I_Coefficient", 0)
-            self.leader_arms[name].write("D_Coefficient", 32)
-            self.leader_arms[name].write("Lock", 0)
-            self.leader_arms[name].write("Maximum_Acceleration", 254)
-            self.leader_arms[name].write("Acceleration", 0)
+        # for name in self.leader_arms:
+        #     self.leader_arms[name].write("Mode", 0)
+        #     self.leader_arms[name].write("P_Coefficient", 32)
+        #     self.leader_arms[name].write("I_Coefficient", 0)
+        #     self.leader_arms[name].write("D_Coefficient", 32)
+        #     self.leader_arms[name].write("Lock", 0)
+        #     self.leader_arms[name].write("Maximum_Acceleration", 254)
+        #     self.leader_arms[name].write("Acceleration", 0)
 
     def teleop_step(self, record_data=False) -> None | tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]:
         if not self.is_connected:

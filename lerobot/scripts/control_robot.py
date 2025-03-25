@@ -366,7 +366,7 @@ def replay(
     if not robot.is_connected:
         robot.connect()
 
-    log_say("播放视频", cfg.play_sounds, blocking=True)
+    # log_say("播放视频", cfg.play_sounds, blocking=True)
     for idx in range(dataset.num_frames):
         start_episode_t = time.perf_counter()
 
@@ -471,6 +471,10 @@ def control_robot(cfg: ControlPipelineConfig):
     logging.info(pformat(asdict(cfg)))
 
     global robot
+
+    if isinstance(cfg.control, RecordControlConfig):
+        cfg.robot.record = True
+
     robot = make_robot_from_config(cfg.robot)
 
     if isinstance(cfg.control, CalibrateControlConfig):
