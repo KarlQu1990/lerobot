@@ -411,7 +411,7 @@ def test_policy(
 
         # Read the follower state and access the frames from the cameras
         observation = robot.capture_observation()
-
+        
         if not is_headless():
             show_image_observation(observation)
 
@@ -424,6 +424,9 @@ def test_policy(
             observation[name] = observation[name].unsqueeze(0)
             observation[name] = observation[name].to(cfg.device)
 
+        if cfg.task:
+            observation["task"] = [cfg.task]
+            
         # Compute the next action with the policy
         # based on the current observation
         action = policy.select_action(observation)

@@ -295,7 +295,7 @@ def train(cfg: TrainPipelineConfig):
         eval_env.close()
 
     end_t = time.time()
-    time_cost = (end_t - start_t) // 3600
+    time_cost = (end_t - start_t) / 3600
     logging.info(f"End of training, time cost: {time_cost:.2f} hours.")
 
 

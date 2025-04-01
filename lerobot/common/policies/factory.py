@@ -113,6 +113,10 @@ def make_policy(
             "Current implementation of VQBeT does not support `mps` backend. "
             "Please use `cpu` or `cuda` backend."
         )
+    
+    if cfg.type == "pi0":
+        import os
+        os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
     policy_cls = get_policy_class(cfg.type)
 

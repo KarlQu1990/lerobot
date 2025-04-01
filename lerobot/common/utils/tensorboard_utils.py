@@ -39,9 +39,6 @@ class TensorboardLogger:
         if self._tb:
             for k, v in d.items():
                 if not isinstance(v, (int, float, str)):
-                    logging.warning(
-                        f'logging of key "{k}" was ignored as its type is not handled by this wrapper.'
-                    )
                     continue
 
                 if self._tb:

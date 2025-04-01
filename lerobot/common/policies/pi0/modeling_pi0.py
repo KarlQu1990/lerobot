@@ -274,7 +274,7 @@ class PI0Policy(PreTrainedPolicy):
             batch[OBS_ROBOT] = self._pi_aloha_decode_state(batch[OBS_ROBOT])
 
         batch = self.normalize_inputs(batch)
-
+        
         # Action queue logic for n_action_steps > 1. When the action_queue is depleted, populate it by
         # querying the policy.
         if len(self._action_queue) == 0:
