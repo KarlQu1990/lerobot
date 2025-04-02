@@ -55,6 +55,11 @@ class TensorboardConfig:
 
 
 @dataclass
+class TensorboardConfig:
+    enable: bool = True
+
+
+@dataclass
 class EvalConfig:
     n_episodes: int = 50
     # `batch_size` specifies the number of environments to use in a gym.vector.VectorEnv.

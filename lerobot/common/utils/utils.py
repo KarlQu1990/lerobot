@@ -15,6 +15,7 @@
 # limitations under the License.
 import logging
 import os
+import sys
 import os.path as osp
 import platform
 import subprocess
@@ -24,6 +25,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from threading import Thread, Event
 
 
 def none_or_int(value):
@@ -146,9 +148,7 @@ def _relative_path_between(path1: Path, path2: Path) -> Path:
         return path1.relative_to(path2)
     except ValueError:  # most likely because path1 is not a subpath of path2
         common_parts = Path(osp.commonpath([path1, path2])).parts
-        return Path(
-            "/".join([".."] * (len(path2.parts) - len(common_parts)) + list(path1.parts[len(common_parts) :]))
-        )
+        return Path("/".join([".."] * (len(path2.parts) - len(common_parts)) + list(path1.parts[len(common_parts) :])))
 
 
 def print_cuda_memory_usage():
@@ -228,3 +228,40 @@ def is_valid_numpy_dtype_string(dtype_str: str) -> bool:
     except TypeError:
         # If a TypeError is raised, the string is not a valid dtype
         return False
+
+
+def run_in_subprocess(script_path: str, args: list[str]) -> None:
+    def read_stream(proc: subprocess.Popen, stream_type: str, stop_event: Event):
+        instream, outstream = (proc.stdout, sys.stdout) if stream_type == "stdout" else (proc.stderr, sys.stderr)
+
+        # for line in instream:
+        #     if not line and proc.poll() is not None:
+        #         break
+
+        #     print(line.rstrip(), file=outstream)
+
+        while not stop_event.is_set():
+            char = instream.read(1)
+            if not char:
+                break
+
+            print(char, end="", flush=True, file=outstream)
+
+    cmd = [sys.executable, script_path] + args
+    proc = subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, bufsize=1, encoding="utf-8"
+    )
+
+    stop_event = Event()
+
+    stdout_thread = Thread(target=read_stream, args=(proc, "stdout", stop_event))
+    stderr_thread = Thread(target=read_stream, args=(proc, "stderr", stop_event))
+
+    stdout_thread.start()
+    stderr_thread.start()
+
+    try:
+        # 等待子进程结束
+        proc.wait()
+    except KeyboardInterrupt:
+        proc.kill()

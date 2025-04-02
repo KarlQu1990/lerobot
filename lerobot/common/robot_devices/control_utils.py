@@ -165,14 +165,7 @@ def init_keyboard_listener():
         except Exception as e:
             print(f"Error handling key press: {e}")
 
-    
-    def on_release(key):
-        try:
-            print(f"key {key} released.")
-        except Exception as e:
-            print(f"Exception in on_release: {key}")
-
-    listener = keyboard.Listener(on_press=on_press, on_release=on_release)
+    listener = keyboard.Listener(on_press=on_press)
     listener.start()
 
     return listener, events
@@ -219,7 +212,7 @@ def record_episode(
     )
 
 
-def show_image_observation(observation:dict):
+def show_image_observation(observation: dict):
     image_keys = [key for key in observation if "image" in key]
 
     cols = 2
@@ -300,7 +293,7 @@ def control_loop(
         events = {"exit_early": False}
 
     if control_time_s is None:
-        control_time_s = float("inf")
+        control_time_s = 1e5
 
     if teleoperate and policy is not None:
         raise ValueError("When `teleoperate` is True, `policy` should be None.")
@@ -312,10 +305,11 @@ def control_loop(
         raise ValueError(f"The dataset fps should be equal to requested fps ({dataset['fps']} != {fps}).")
 
     timestamp = 0
+    timestamp_int = 0
     start_episode_t = time.perf_counter()
     log_interval = 5
     last_log_t = 0
-    with tqdm.tqdm(total=control_time_s, desc="Controling", bar_format="{n:.3f}") as pbar:
+    with tqdm.tqdm(total=control_time_s, desc="视频进度") as pbar:
         while timestamp < control_time_s:
             start_loop_t = time.perf_counter()
 
@@ -343,18 +337,23 @@ def control_loop(
             if fps is not None:
                 dt_s = time.perf_counter() - start_loop_t
                 busy_wait(1 / fps - dt_s)
-            
+
             dt_s = time.perf_counter() - start_loop_t
             if time.perf_counter() - last_log_t > log_interval:
                 log_control_info(robot, dt_s, fps=fps)
                 last_log_t = time.perf_counter()
 
-            pbar.update(dt_s)
-
             timestamp = time.perf_counter() - start_episode_t
+            if int(timestamp) > timestamp_int:
+                timestamp_int = int(timestamp)
+                pbar.update(1)
+
             if events["exit_early"]:
                 events["exit_early"] = False
                 break
+
+        if timestamp_int < control_time_s:
+            pbar.update(1)
 
 
 def reset_environment(robot, events, reset_time_s, fps):
@@ -400,9 +399,7 @@ def sanity_check_dataset_name(repo_id, policy_cfg):
         )
 
 
-def sanity_check_dataset_robot_compatibility(
-    dataset: LeRobotDataset, robot: Robot, fps: int, use_videos: bool
-) -> None:
+def sanity_check_dataset_robot_compatibility(dataset: LeRobotDataset, robot: Robot, fps: int, use_videos: bool) -> None:
     fields = [
         ("robot_type", dataset.meta.robot_type, robot.robot_type),
         ("fps", dataset.fps, fps),
@@ -416,6 +413,4 @@ def sanity_check_dataset_robot_compatibility(
             mismatches.append(f"{field}: expected {present_value}, got {dataset_value}")
 
     if mismatches:
-        raise ValueError(
-            "Dataset metadata compatibility check failed with mismatches:\n" + "\n".join(mismatches)
-        )
+        raise ValueError("Dataset metadata compatibility check failed with mismatches:\n" + "\n".join(mismatches))

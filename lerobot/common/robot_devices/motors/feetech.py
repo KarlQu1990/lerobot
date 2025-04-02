@@ -15,15 +15,18 @@
 import enum
 import logging
 import math
+import platform
 import time
 import traceback
 from copy import deepcopy
+from functools import cached_property
 
 import numpy as np
 import tqdm
 
 from lerobot.common.robot_devices.motors.configs import FeetechMotorsBusConfig
 from lerobot.common.robot_devices.utils import RobotDeviceAlreadyConnectedError, RobotDeviceNotConnectedError
+from lerobot.common.utils.usb_utils import USBDeviceManager
 from lerobot.common.utils.utils import capture_timestamp_utc
 
 PROTOCOL_VERSION = 0
@@ -174,8 +177,7 @@ def convert_to_bytes(value, bytes, mock=False):
         ]
     else:
         raise NotImplementedError(
-            f"Value of the number of bytes to be sent is expected to be in [1, 2, 4], but "
-            f"{bytes} is provided instead."
+            f"Value of the number of bytes to be sent is expected to be in [1, 2, 4], but {bytes} is provided instead."
         )
     return data
 
@@ -306,6 +308,17 @@ class FeetechMotorsBus:
 
         self.track_positions = {}
 
+    @cached_property
+    def port_real(self) -> str:
+        if platform.system() != "Windows":
+            return self.port
+
+        mgr = USBDeviceManager().load()
+        if not mgr.devices:
+            return self.port
+
+        return mgr.devices[self.port]["Drive Letter"]
+
     def connect(self):
         if self.is_connected:
             raise RobotDeviceAlreadyConnectedError(
@@ -317,7 +330,7 @@ class FeetechMotorsBus:
         else:
             import scservo_sdk as scs
 
-        self.port_handler = scs.PortHandler(self.port)
+        self.port_handler = scs.PortHandler(self.port_real)
         self.packet_handler = scs.PacketHandler(PROTOCOL_VERSION)
 
         try:
@@ -341,7 +354,7 @@ class FeetechMotorsBus:
         else:
             import scservo_sdk as scs
 
-        self.port_handler = scs.PortHandler(self.port)
+        self.port_handler = scs.PortHandler(self.port_real)
         self.packet_handler = scs.PacketHandler(PROTOCOL_VERSION)
 
         if not self.port_handler.openPort():
@@ -461,7 +474,7 @@ class FeetechMotorsBus:
 
                 if (values[i] < LOWER_BOUND_DEGREE) or (values[i] > UPPER_BOUND_DEGREE):
                     raise JointOutOfRangeError(
-                        f"Wrong motor position range detected for {name}. "
+                        f"Wrong motor position range detected for {name} of [{self.port}]. "
                         f"Expected to be in nominal range of [-{HALF_TURN_DEGREE}, {HALF_TURN_DEGREE}] degrees (a full rotation), "
                         f"with a maximum range of [{LOWER_BOUND_DEGREE}, {UPPER_BOUND_DEGREE}] degrees to account for joints that can rotate a bit more, "
                         f"but present value is {values[i]} degree. "
@@ -479,7 +492,7 @@ class FeetechMotorsBus:
 
                 if (values[i] < LOWER_BOUND_LINEAR) or (values[i] > UPPER_BOUND_LINEAR):
                     raise JointOutOfRangeError(
-                        f"Wrong motor position range detected for {name}. "
+                        f"Wrong motor position range detected for {name} or [{self.port}]. "
                         f"Expected to be in nominal range of [0, 100] % (a full linear translation), "
                         f"with a maximum range of [{LOWER_BOUND_LINEAR}, {UPPER_BOUND_LINEAR}] % to account for some imprecision during calibration, "
                         f"but present value is {values[i]} %. "
@@ -738,9 +751,7 @@ class FeetechMotorsBus:
             self.port_handler.ser.reset_input_buffer()
 
             # create new group reader
-            self.group_readers[group_key] = scs.GroupSyncRead(
-                self.port_handler, self.packet_handler, addr, bytes
-            )
+            self.group_readers[group_key] = scs.GroupSyncRead(self.port_handler, self.packet_handler, addr, bytes)
             for idx in motor_ids:
                 self.group_readers[group_key].addParam(idx)
 
@@ -853,9 +864,7 @@ class FeetechMotorsBus:
 
         init_group = data_name not in self.group_readers
         if init_group:
-            self.group_writers[group_key] = scs.GroupSyncWrite(
-                self.port_handler, self.packet_handler, addr, bytes
-            )
+            self.group_writers[group_key] = scs.GroupSyncWrite(self.port_handler, self.packet_handler, addr, bytes)
 
         for idx, value in zip(motor_ids, values, strict=True):
             data = convert_to_bytes(value, bytes, self.mock)
@@ -882,9 +891,11 @@ class FeetechMotorsBus:
 
     def disconnect(self):
         if not self.is_connected:
-            raise RobotDeviceNotConnectedError(
-                f"FeetechMotorsBus({self.port}) is not connected. Try running `motors_bus.connect()` first."
-            )
+            # raise RobotDeviceNotConnectedError(
+            #     f"FeetechMotorsBus({self.port}) is not connected. Try running `motors_bus.connect()` first."
+            # )
+            # print(f"FeetechMotorsBus({self.port}) is not connected. Try running `motors_bus.connect()` first.")
+            return
 
         if self.port_handler is not None:
             self.port_handler.closePort()

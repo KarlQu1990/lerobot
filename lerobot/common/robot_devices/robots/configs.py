@@ -443,7 +443,7 @@ class So100BimanualRobotConfig(ManipulatorRobotConfig):
     leader_arms: dict[str, MotorsBusConfig] = field(
         default_factory=lambda: {
             "left": FeetechMotorsBusConfig(
-                port="/dev/ttyUSB_left_leader",
+                port="left_leader",
                 motors={
                     # name: (index, model)
                     "shoulder_pan": [1, "sts3215"],
@@ -455,7 +455,7 @@ class So100BimanualRobotConfig(ManipulatorRobotConfig):
                 },
             ),
             "right": FeetechMotorsBusConfig(
-                port="/dev/ttyUSB_right_leader",
+                port="right_leader",
                 motors={
                     # name: (index, model)
                     "shoulder_pan": [1, "sts3215"],
@@ -472,7 +472,7 @@ class So100BimanualRobotConfig(ManipulatorRobotConfig):
     follower_arms: dict[str, MotorsBusConfig] = field(
         default_factory=lambda: {
             "left": FeetechMotorsBusConfig(
-                port="/dev/ttyUSB_left_follower",
+                port="left_follower",
                 motors={
                     # name: (index, model)
                     "shoulder_pan": [1, "sts3215"],
@@ -484,7 +484,7 @@ class So100BimanualRobotConfig(ManipulatorRobotConfig):
                 },
             ),
             "right": FeetechMotorsBusConfig(
-                port="/dev/ttyUSB_right_follower",
+                port="right_follower",
                 motors={
                     # name: (index, model)
                     "shoulder_pan": [1, "sts3215"],
@@ -501,29 +501,29 @@ class So100BimanualRobotConfig(ManipulatorRobotConfig):
     cameras: dict[str, CameraConfig] = field(
         default_factory=lambda: {
             "high": OpenCVCameraConfig(
-                camera_index="/dev/video_high",
+                camera_index="high",
                 fps=30,
                 width=640,
                 height=480,
             ),
             # "low": OpenCVCameraConfig(
-            #     camera_index="/dev/video_low",
+            #     camera_index="low",
             #     fps=30,
             #     width=640,
             #     height=480,
             # ),
             "left_wrist": OpenCVCameraConfig(
-                camera_index="/dev/video_left_wrist",
+                camera_index="left_wrist",
                 fps=30,
                 width=640,
                 height=480,
             ),
             "right_wrist": OpenCVCameraConfig(
-                camera_index="/dev/video_right_wrist",
+                camera_index="right_wrist",
                 fps=30,
                 width=640,
                 height=480,
-            )
+            ),
         }
     )
 

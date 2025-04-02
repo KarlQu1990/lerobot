@@ -1,4 +1,0 @@
-SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", ATTRS{devpath}=="*.1", SYMLINK+="ttyUSB_left_follower"
-SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", ATTRS{devpath}=="*.2", SYMLINK+="ttyUSB_left_leader"
-SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", ATTRS{devpath}=="*.3", SYMLINK+="ttyUSB_right_leader"
-SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", ATTRS{devpath}=="*.4", SYMLINK+="ttyUSB_right_follower"

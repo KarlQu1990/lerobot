@@ -1,0 +1,17 @@
+robot:
+  type: "so100_bimanual"
+control:
+  type: record
+  root: D:/projects/lerobot_datasets
+  repo_id: hhws/so100_bimanual_clothes_7
+  single_task: 将桌面上的散乱的衣服叠好。
+  fps: 30
+  warmup_time_s: 5
+  episode_time_s: 240
+  reset_time_s: 30
+  num_episodes: 100
+  resume: false
+  tags: ["so100","tutorial"]
+  push_to_hub: false
+  # policy:
+  #   path: path/to/pretrained_model

@@ -15,22 +15,22 @@
 """
 This file contains utilities for recording frames from cameras. For more info look at `OpenCVCamera` docstring.
 """
-import cv2
+
 import argparse
 import concurrent.futures
 import math
+import multiprocessing as mp
 import platform
 import shutil
+import subprocess
 import threading
 import time
-import subprocess
-import multiprocessing as mp
 from multiprocessing.synchronize import Event as MpEvent
 from dataclasses import replace
 from pathlib import Path
 from threading import Thread
 
-
+import cv2
 import numpy as np
 from PIL import Image
 
@@ -41,6 +41,7 @@ from lerobot.common.robot_devices.utils import (
     busy_wait,
 )
 from lerobot.common.utils.utils import capture_timestamp_utc
+from lerobot.common.utils.usb_utils import get_camera_device_paths, USBDeviceManager
 
 # The maximum opencv device index depends on your operating system. For instance,
 # if you have 3 cameras, they should be associated to index 0, 1, and 2. This is the case
@@ -55,7 +56,8 @@ cv2.setNumThreads(1)
 
 def find_cameras(raise_when_empty=False, max_index_search_range=MAX_OPENCV_INDEX, mock=False) -> list[dict]:
     cameras = []
-    if platform.system() == "Linux":
+    system = platform.system()
+    if system == "Linux":
         print("Linux detected. Finding available camera indices through scanning '/dev/video*' ports")
         possible_ports = [str(port) for port in Path("/dev").glob("video*")]
         ports = _find_cameras_linux(possible_ports, mock=mock)
@@ -63,32 +65,34 @@ def find_cameras(raise_when_empty=False, max_index_search_range=MAX_OPENCV_INDEX
             if Path(port).is_symlink():
                 continue
 
-            cameras.append(
-                {
-                    "port": port,
-                    "index": int(port.removeprefix("/dev/video")),
-                }
-            )
+            cameras.append({
+                "port": port,
+                "index": int(port.removeprefix("/dev/video")),
+            })
+    elif system == "Windows":
+        print("Linux detected. Finding available camera indices through pygrabber.")
+        device_paths = get_camera_device_paths()
+        for idx, path in enumerate(device_paths):
+            cameras.append({
+                "port": path,
+                "index": idx,
+            })
     else:
         print(
-            "Mac or Windows detected. Finding available camera indices through "
-            f"scanning all indices from 0 to {MAX_OPENCV_INDEX}"
+            f"Mac detected. Finding available camera indices through scanning all indices from 0 to {MAX_OPENCV_INDEX}"
         )
         possible_indices = range(max_index_search_range)
         indices = _find_cameras(possible_indices, mock=mock)
         for index in indices:
-            cameras.append(
-                {
-                    "port": None,
-                    "index": index,
-                }
-            )
+            cameras.append({
+                "port": None,
+                "index": index,
+            })
 
     return cameras
 
 
-def _find_cameras_linux(possible_ports: list[int | str], raise_when_empty=False, mock=False
-) -> list[int | str]:
+def _find_cameras_linux(possible_ports: list[int | str], raise_when_empty=False, mock=False) -> list[int | str]:
     if mock:
         return _find_cameras(possible_ports, raise_when_empty=raise_when_empty, mock=True)
 
@@ -100,16 +104,13 @@ def _find_cameras_linux(possible_ports: list[int | str], raise_when_empty=False,
 
         ports.append(port)
 
-
     if raise_when_empty and len(ports) == 0:
         raise OSError("未检测到摄像头，请重新插拔USB摄像头。")
 
     return ports
 
 
-def _find_cameras(
-    possible_camera_ids: list[int | str], raise_when_empty=False, mock=False
-) -> list[int | str]:
+def _find_cameras(possible_camera_ids: list[int | str], raise_when_empty=False, mock=False) -> list[int | str]:
     if mock:
         import tests.cameras.mock_cv2 as cv2
     else:
@@ -224,376 +225,6 @@ def save_images_from_cameras(
     print(f"Images have been saved to {images_dir}")
 
 
-
-        
-
-class CameraProcess:
-    def __init__(self, camera_idx: int, fps: int, width: int, height: int, color_mode: str, pixel_format: str, mock: bool, rotation: int ):
-        self.camera_index = camera_idx
-        self.fps = fps
-        self.width = width
-        self.height = height
-        self.color_mode = color_mode
-        self.mock = mock
-        self.pixel_format = pixel_format
-
-        self.is_connected = False
-        self.color_image = None
-        self.rotation = rotation
-        self.logs = {}
-
-        self.camera = None
-        self.queue = None
-
-        self.stop_event = None
-        self.read_process = None
-        self.read_thread = None
-
-    def read(self, temporary_color_mode: str | None = None, camera: "cv2.VideoCapture" = None):
-        if not self.is_connected:
-            raise RobotDeviceNotConnectedError(
-                f"OpenCVCamera({self.camera_index}) is not connected. Try running `camera.connect()` first."
-            )
-        
-        if camera is None and self.stop_event is not None:
-            raise Exception(
-                f"OpenCVCamera({self.camera_index}) already run in multiprocess mode, can not switch mode, please use `async_read`."
-            )
-        
-        if camera is None:
-            camera = self.camera
-
-        start_time = time.perf_counter()
-
-        ret, color_image = camera.read()
-
-        if not ret:
-            raise OSError(f"Can't capture color image from camera {self.camera_index}.")
-
-        requested_color_mode = self.color_mode if temporary_color_mode is None else temporary_color_mode
-
-        if requested_color_mode not in ["rgb", "bgr"]:
-            raise ValueError(
-                f"Expected color values are 'rgb' or 'bgr', but {requested_color_mode} is provided."
-            )
-
-        # OpenCV uses BGR format as default (blue, green, red) for all operations, including displaying images.
-        # However, Deep Learning framework such as LeRobot uses RGB format as default to train neural networks,
-        # so we convert the image color from BGR to RGB.
-        if requested_color_mode == "rgb":
-            if self.mock:
-                import tests.mock_cv2 as cv2
-            else:
-                import cv2
-
-            color_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
-
-        h, w, _ = color_image.shape
-        if h != self.height or w != self.width:
-            raise OSError(
-                f"Can't capture color image with expected height and width ({self.height} x {self.width}). ({h} x {w}) returned instead."
-            )
-
-        if self.rotation is not None:
-            color_image = cv2.rotate(color_image, self.rotation)
-
-        # log the number of seconds it took to read the image
-        delta_timestamp_s = time.perf_counter() - start_time
-
-        # log the utc time at which the image was received
-        timestamp_utc = capture_timestamp_utc()
-
-
-        return delta_timestamp_s, timestamp_utc, color_image
-
-    def read_process_loop(self, queue: mp.Queue, stop_event: MpEvent):
-        if self.camera:
-            self.camera.release()
-            self.camera = None
-            time.sleep(0.1)
-
-        camera = self._create_video_capture()
-
-        while not stop_event.is_set():
-            try:
-                result = self.read(camera=camera)
-                if self.queue.full():
-                    queue.get()
-
-                queue.put(result)
-            except Exception as e:
-                print(f"Error reading in process: {e}")
-
-    def read_thread_loop(self, queue: mp.Queue, stop_event: MpEvent):
-        elapse = 2 / self.fps 
-        while not stop_event.is_set():
-            if not queue.empty():
-                result = queue.get()
-                if not result:
-                    break
-
-                delta_timestamp_s, timestamp_utc, color_image = result
-                self.logs["delta_timestamp_s"] = delta_timestamp_s
-                self.logs["timestamp_utc"] = timestamp_utc
-                self.color_image = color_image
-                time.sleep(elapse)
-
-    def asyn_read(self):
-        if self.read_process is None:
-            self.stop_event = mp.Event()
-            self.queue = mp.Queue(maxsize=2)
-            self.read_process = Thread(target=self.read_process_loop, args=(self.queue, self.stop_event))
-            self.read_process.start()
-
-            self.read_thread = Thread(target=self.read_thread_loop, args=(self.queue, self.stop_event))
-            self.read_thread.daemon = True
-            self.read_thread.start()
-
-        num_tries = 0
-        while True:
-            if self.color_image is not None:
-                return self.color_image
-
-            time.sleep(1 / self.fps)
-            num_tries += 1
-            if num_tries > self.fps * 2:
-                raise TimeoutError("Timed out waiting for async_read() to start.")
-
-    def _create_video_capture(self):
-        camera_idx = f"/dev/video{self.camera_index}" if platform.system() == "Linux" else self.camera_index
-
-        camera = cv2.VideoCapture(camera_idx, cv2.CAP_V4L2)
-        format_code = cv2.VideoWriter_fourcc(*self.pixel_format)
-        camera.set(cv2.CAP_PROP_FOURCC, format_code)
-
-        if self.width is not None:
-            camera.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
-        if self.height is not None:
-            camera.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
-        if self.fps is not None:
-            camera.set(cv2.CAP_PROP_FPS, self.fps)
-        
-        actual_fps = camera.get(cv2.CAP_PROP_FPS)
-        actual_width = camera.get(cv2.CAP_PROP_FRAME_WIDTH)
-        actual_height = camera.get(cv2.CAP_PROP_FRAME_HEIGHT)
-        actual_format_code = camera.get(cv2.CAP_PROP_FOURCC)
-
-
-        if self.pixel_format and not math.isclose(format_code, actual_format_code, rel_tol=1e-3):
-            # Using `OSError` since it's a broad that encompasses issues related to device communication
-            raise OSError(
-                f"Can't set {self.pixel_format=} for OpenCVCamera({self.camera_index}). Actual value is {actual_format_code}."
-            )
-        # Using `math.isclose` since actual fps can be a float (e.g. 29.9 instead of 30)
-        if self.fps is not None and not math.isclose(self.fps, actual_fps, rel_tol=1e-3):
-            # Using `OSError` since it's a broad that encompasses issues related to device communication
-            raise OSError(
-                f"Can't set {self.fps=} for OpenCVCamera({self.camera_index}). Actual value is {actual_fps}."
-            )
-        if self.width is not None and not math.isclose(self.width, actual_width, rel_tol=1e-3):
-            raise OSError(
-                f"Can't set {self.width=} for OpenCVCamera({self.camera_index}). Actual value is {actual_width}."
-            )
-        if self.height is not None and not math.isclose(self.height, actual_height, rel_tol=1e-3):
-            raise OSError(
-                f"Can't set {self.height=} for OpenCVCamera({self.camera_index}). Actual value is {actual_height}."
-            )
-    
-        self.fps = round(actual_fps)
-        self.width = round(actual_width)
-        self.height = round(actual_height)
-
-        return camera
-
-
-    def connect(self):
-        if self.mock:
-            import tests.mock_cv2 as cv2
-        else:
-            import cv2
-
-            # Use 1 thread to avoid blocking the main thread. Especially useful during data collection
-            # when other threads are used to save the images.
-            cv2.setNumThreads(1)
-
-        camera_idx = f"/dev/video{self.camera_index}" if platform.system() == "Linux" else self.camera_index
-        # First create a temporary camera trying to access `camera_index`,
-        # and verify it is a valid camera by calling `isOpened`.
-        tmp_camera = cv2.VideoCapture(camera_idx)
-        is_camera_open = tmp_camera.isOpened()
-        # Release camera to make it accessible for `find_camera_indices`
-        tmp_camera.release()
-        del tmp_camera
-
-        # If the camera doesn't work, display the camera indices corresponding to
-        # valid cameras.
-        if not is_camera_open:
-            # Verify that the provided `camera_index` is valid before printing the traceback
-            cameras_info = find_cameras()
-            available_cam_ids = [cam["index"] for cam in cameras_info]
-            if self.camera_index not in available_cam_ids:
-                raise ValueError(
-                    f"`camera_index` is expected to be one of these available cameras {available_cam_ids}, but {self.camera_index} is provided instead. "
-                    "To find the camera index you should use, run `python lerobot/common/robot_devices/cameras/opencv.py`."
-                )
-
-            raise OSError(f"Can't access OpenCVCamera({camera_idx}).")
-
-        # Secondly, create the camera that will be used downstream.
-        # Note: For some unknown reason, calling `isOpened` blocks the camera which then
-        # needs to be re-created.
-        self.camera = self._create_video_capture()
-
-        self.is_connected = True
-
-    def disconnect(self):
-        if self.read_process is not None:
-            self.stop_event.set()
-            self.queue.put(None)
-
-            self.read_process.join()
-            self.read_thread.join()
-
-            self.read_process = None
-            self.read_thread = None
-            self.stop_event = None
-
-        if self.camera:
-            self.camera.release()
-            self.camera = None
-
-
-class OpenCVCameraV2: 
-    """
-    The OpenCVCamera class allows to efficiently record images from cameras. It relies on opencv2 to communicate
-    with the cameras. Most cameras are compatible. For more info, see the [Video I/O with OpenCV Overview](https://docs.opencv.org/4.x/d0/da7/videoio_overview.html).
-
-    An OpenCVCamera instance requires a camera index (e.g. `OpenCVCamera(camera_index=0)`). When you only have one camera
-    like a webcam of a laptop, the camera index is expected to be 0, but it might also be very different, and the camera index
-    might change if you reboot your computer or re-plug your camera. This behavior depends on your operation system.
-
-    To find the camera indices of your cameras, you can run our utility script that will be save a few frames for each camera:
-    ```bash
-    python lerobot/common/robot_devices/cameras/opencv.py --images-dir outputs/images_from_opencv_cameras
-    ```
-
-    When an OpenCVCamera is instantiated, if no specific config is provided, the default fps, width, height and color_mode
-    of the given camera will be used.
-
-    Example of usage:
-    ```python
-    camera = OpenCVCamera(camera_index=0)
-    camera.connect()
-    color_image = camera.read()
-    # when done using the camera, consider disconnecting
-    camera.disconnect()
-    ```
-
-    Example of changing default fps, width, height and color_mode:
-    ```python
-    camera = OpenCVCamera(0, fps=30, width=1280, height=720)
-    camera = connect()  # applies the settings, might error out if these settings are not compatible with the camera
-
-    camera = OpenCVCamera(0, fps=90, width=640, height=480)
-    camera = connect()
-
-    camera = OpenCVCamera(0, fps=90, width=640, height=480, color_mode="bgr")
-    camera = connect()
-    ```
-    """
-
-    def __init__(self, camera_index: int | str, config: OpenCVCameraConfig | None = None, **kwargs):
-        if config is None:
-            config = OpenCVCameraConfig()
-
-        # Overwrite config arguments using kwargs
-        config = replace(config, **kwargs)
-
-        self.camera_index = camera_index
-        self.port = None
-
-        # Linux uses ports for connecting to cameras
-        if platform.system() == "Linux":
-            if isinstance(self.camera_index, int):
-                self.port = Path(f"/dev/video{self.camera_index}")
-            elif isinstance(self.camera_index, str) and is_valid_unix_path(self.camera_index):
-                self.port = Path(self.camera_index)
-                # Retrieve the camera index from a potentially symlinked path
-                self.camera_index = get_camera_index_from_unix_port(self.port)
-            else:
-                raise ValueError(f"Please check the provided camera_index: {camera_index}")
-            
-        if config.mock:
-            import tests.mock_cv2 as cv2
-        else:
-            import cv2
-        
-        self.is_connected = False
-
-        rotation = None
-        if config.rotation == -90:
-            rotation = cv2.ROTATE_90_COUNTERCLOCKWISE
-        elif config.rotation == 90:
-            rotation = cv2.ROTATE_90_CLOCKWISE
-        elif config.rotation == 180:
-            rotation = cv2.ROTATE_180
-
-        self.camera_process = CameraProcess(self.camera_index, config.fps, config.width, config.height, config.color_mode, config.pixel_format, config.mock, rotation)
-
-    @property
-    def logs(self):
-        return self.camera_process.logs
-    
-    @property
-    def color_image(self):
-        return self.camera_process.color_image
-
-    def connect(self):
-        if self.is_connected:
-            raise RobotDeviceAlreadyConnectedError(f"OpenCVCamera({self.camera_index}) is already connected.")
-
-        self.camera_process.connect()
-        self.is_connected = True
-
-    def read(self, temporary_color_mode: str | None = None, camera: "cv2.VideoCapture" = None) -> np.ndarray:
-        """Read a frame from the camera returned in the format (height, width, channels)
-        (e.g. 480 x 640 x 3), contrarily to the pytorch format which is channel first.
-
-        Note: Reading a frame is done every `camera.fps` times per second, and it is blocking.
-        If you are reading data from other sensors, we advise to use `camera.async_read()` which is non blocking version of `camera.read()`.
-        """
-        delta_timestamp_s, timestamp_utc, color_image = self.camera_process.read(temporary_color_mode, camera=camera)
-
-        # 在主进程中调用，需要手动更新时间辍信息
-        self.camera_process.logs["delta_timestamp_s"] = delta_timestamp_s
-        self.camera_process.logs["timestamp_utc"] = timestamp_utc
-        self.camera_process.color_image = color_image
-
-        return color_image
-
-    def async_read(self):
-        if not self.is_connected:
-            raise RobotDeviceNotConnectedError(
-                f"OpenCVCamera({self.camera_index}) is not connected. Try running `camera.connect()` first."
-            )
-
-        return self.camera_process.asyn_read()
-    
-    def disconnect(self):
-        if not self.is_connected:
-            raise RobotDeviceNotConnectedError(
-                f"OpenCVCamera({self.camera_index}) is not connected. Try running `camera.connect()` first."
-            )
-
-        self.camera_process.disconnect()
-        self.is_connected = False
-
-    def __del__(self):
-        if getattr(self, "is_connected", False):
-            self.disconnect()
-
-
-
 class OpenCVCamera:
     """
     The OpenCVCamera class allows to efficiently record images from cameras. It relies on opencv2 to communicate
@@ -699,17 +330,27 @@ class OpenCVCamera:
             # when other threads are used to save the images.
             cv2.setNumThreads(1)
 
-        backend = (
-            cv2.CAP_V4L2
-            if platform.system() == "Linux"
-            else cv2.CAP_DSHOW
-            if platform.system() == "Windows"
-            else cv2.CAP_AVFOUNDATION
-            if platform.system() == "Darwin"
-            else cv2.CAP_ANY
-        )
+        if platform.system() == "Linux":
+            camera_idx = f"/dev/video{self.camera_index}"
+            backend = cv2.CAP_V4L2
+        elif platform.system() == "Windows":
+            backend = cv2.CAP_DSHOW
+            device_paths = get_camera_device_paths()
+            mgr = USBDeviceManager().load()
 
-        camera_idx = f"/dev/video{self.camera_index}" if platform.system() == "Linux" else self.camera_index
+            instance_id: str = mgr.devices[self.camera_index]["Instance ID"]
+            # 反斜杠替换成#
+            instance_id = instance_id.replace("\\", "#")
+
+            camera_idx = -1
+            for idx, path in enumerate(device_paths):
+                if instance_id.lower() in path:
+                    camera_idx = idx
+                    break
+        else:
+            backend = cv2.CAP_AVFOUNDATION if platform.system() == "Darwin" else cv2.CAP_ANY
+            camera_idx = self.camera_index
+
         # First create a temporary camera trying to access `camera_index`,
         # and verify it is a valid camera by calling `isOpened`.
         tmp_camera = cv2.VideoCapture(camera_idx, backend)
@@ -724,9 +365,9 @@ class OpenCVCamera:
             # Verify that the provided `camera_index` is valid before printing the traceback
             cameras_info = find_cameras()
             available_cam_ids = [cam["index"] for cam in cameras_info]
-            if self.camera_index not in available_cam_ids:
+            if camera_idx not in available_cam_ids:
                 raise ValueError(
-                    f"`camera_index` is expected to be one of these available cameras {available_cam_ids}, but {self.camera_index} is provided instead. "
+                    f"`camera_index` is expected to be one of these available cameras {available_cam_ids}, but {camera_idx} is provided instead. "
                     "To find the camera index you should use, run `python lerobot/common/robot_devices/cameras/opencv.py`."
                 )
 
@@ -752,18 +393,14 @@ class OpenCVCamera:
         # Using `math.isclose` since actual fps can be a float (e.g. 29.9 instead of 30)
         if self.fps is not None and not math.isclose(self.fps, actual_fps, rel_tol=1e-3):
             # Using `OSError` since it's a broad that encompasses issues related to device communication
-            raise OSError(
-                f"Can't set {self.fps=} for OpenCVCamera({self.camera_index}). Actual value is {actual_fps}."
-            )
-        if self.capture_width is not None and not math.isclose(
-            self.capture_width, actual_width, rel_tol=1e-3
-        ):
+            raise OSError(f"Can't set {self.fps=} for OpenCVCamera({self.camera_index}). Actual value is {actual_fps}.")
+        if self.width is not None and not math.isclose(self.width, actual_width, rel_tol=1e-3):
+            raise OSError(f"Can't set {self.fps=} for OpenCVCamera({self.camera_index}). Actual value is {actual_fps}.")
+        if self.capture_width is not None and not math.isclose(self.capture_width, actual_width, rel_tol=1e-3):
             raise OSError(
                 f"Can't set {self.capture_width=} for OpenCVCamera({self.camera_index}). Actual value is {actual_width}."
             )
-        if self.capture_height is not None and not math.isclose(
-            self.capture_height, actual_height, rel_tol=1e-3
-        ):
+        if self.capture_height is not None and not math.isclose(self.capture_height, actual_height, rel_tol=1e-3):
             raise OSError(
                 f"Can't set {self.capture_height=} for OpenCVCamera({self.camera_index}). Actual value is {actual_height}."
             )
@@ -795,9 +432,7 @@ class OpenCVCamera:
         requested_color_mode = self.color_mode if temporary_color_mode is None else temporary_color_mode
 
         if requested_color_mode not in ["rgb", "bgr"]:
-            raise ValueError(
-                f"Expected color values are 'rgb' or 'bgr', but {requested_color_mode} is provided."
-            )
+            raise ValueError(f"Expected color values are 'rgb' or 'bgr', but {requested_color_mode} is provided.")
 
         # OpenCV uses BGR format as default (blue, green, red) for all operations, including displaying images.
         # However, Deep Learning framework such as LeRobot uses RGB format as default to train neural networks,
@@ -843,8 +478,7 @@ class OpenCVCamera:
             )
 
         if self.thread is None:
-            # self.stop_event = threading.Event()
-            self.stop_event = mp.Event()
+            self.stop_event = threading.Event()
             self.thread = Thread(target=self.read_loop, args=())
             self.thread.daemon = True
             self.thread.start()
@@ -861,9 +495,10 @@ class OpenCVCamera:
 
     def disconnect(self):
         if not self.is_connected:
-            raise RobotDeviceNotConnectedError(
-                f"OpenCVCamera({self.camera_index}) is not connected. Try running `camera.connect()` first."
-            )
+            # raise RobotDeviceNotConnectedError(
+            #     f"OpenCVCamera({self.camera_index}) is not connected. Try running `camera.connect()` first."
+            # )
+            return
 
         if self.thread is not None:
             self.stop_event.set()

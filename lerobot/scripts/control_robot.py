@@ -135,6 +135,9 @@ python lerobot/scripts/control_robot.py \
 """
 
 import logging
+import platform
+import signal
+import sys
 import time
 from dataclasses import asdict
 from pprint import pformat
@@ -148,32 +151,45 @@ from lerobot.common.robot_devices.control_configs import (
     RecordControlConfig,
     RemoteRobotConfig,
     ReplayControlConfig,
-    TeleoperateControlConfig,
     ShowPositionConfig,
-    TorqueDisableConfig,
+    TeleoperateControlConfig,
     TestPolicyConfig,
+    TorqueDisableConfig,
 )
 from lerobot.common.robot_devices.control_utils import (
     control_loop,
     init_keyboard_listener,
+    is_headless,
     log_control_info,
     record_episode,
     reset_environment,
     sanity_check_dataset_name,
-    show_image_observation,
     sanity_check_dataset_robot_compatibility,
+    show_image_observation,
     stop_recording,
     warmup_record,
 )
 from lerobot.common.robot_devices.robots.utils import Robot, make_robot_from_config
 from lerobot.common.robot_devices.utils import busy_wait, safe_disconnect
+from lerobot.common.utils.usb_utils import USBDeviceManager
 from lerobot.common.utils.utils import has_method, init_logging, log_say
 from lerobot.configs import parser
-from lerobot.common.robot_devices.control_utils import is_headless
 
 ########################################################################################
 # Control modes
 ########################################################################################
+robot: Robot = None
+
+
+def terminate_handler(signum, frame):
+    global robot
+    print(f"Receive teminate signal: {signum}")
+
+    if robot and robot.is_connected:
+        robot.disconnect()
+
+    print("Exit now.")
+    sys.exit(0)
 
 
 @safe_disconnect
@@ -384,15 +400,12 @@ def show_position(robot: Robot, cfg: ShowPositionConfig):
 
 
 @safe_disconnect
-def test_policy(
-    robot: Robot,
-    cfg: TestPolicyConfig
-):
+def test_policy(robot: Robot, cfg: TestPolicyConfig):
     import torch
 
     from lerobot.common.policies.factory import get_policy_class
 
-    policy_cls = get_policy_class(cfg.name)
+    policy_class = get_policy_class(cfg.name)
 
     if not cfg.pretrained_policy_name_or_path:
         logging.error("预训练权重不能为空。")
@@ -401,7 +414,7 @@ def test_policy(
     if not robot.is_connected:
         robot.connect()
 
-    policy = policy_cls.from_pretrained(cfg.pretrained_policy_name_or_path)
+    policy = policy_class.from_pretrained(cfg.pretrained_policy_name_or_path)
     policy.to(cfg.device)
 
     time_cost = 0
@@ -411,7 +424,7 @@ def test_policy(
 
         # Read the follower state and access the frames from the cameras
         observation = robot.capture_observation()
-        
+
         if not is_headless():
             show_image_observation(observation)
 
@@ -426,7 +439,7 @@ def test_policy(
 
         if cfg.task:
             observation["task"] = [cfg.task]
-            
+
         # Compute the next action with the policy
         # based on the current observation
         action = policy.select_action(observation)
@@ -461,6 +474,7 @@ def control_robot(cfg: ControlPipelineConfig):
     init_logging()
     logging.info(pformat(asdict(cfg)))
 
+    global robot
     robot = make_robot_from_config(cfg.robot)
 
     if isinstance(cfg.control, CalibrateControlConfig):
@@ -489,4 +503,12 @@ def control_robot(cfg: ControlPipelineConfig):
 
 
 if __name__ == "__main__":
+    if platform.system() == "Windows":
+        signal.signal(signal.SIGINT, terminate_handler)
+        signal.signal(signal.SIGBREAK, terminate_handler)
+    else:
+        signal.signal(signal.SIGTERM, terminate_handler)
+        signal.signal(signal.SIGKILL, terminate_handler)
+
+    USBDeviceManager().load()
     control_robot()

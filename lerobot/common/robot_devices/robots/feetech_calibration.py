@@ -26,9 +26,7 @@ from lerobot.common.robot_devices.motors.feetech import (
 )
 from lerobot.common.robot_devices.motors.utils import MotorsBus
 
-URL_TEMPLATE = (
-    "https://raw.githubusercontent.com/huggingface/lerobot/main/media/{robot}/{arm}_{position}.webp"
-)
+URL_TEMPLATE = "https://raw.githubusercontent.com/huggingface/lerobot/main/media/{robot}/{arm}_{position}.webp"
 
 # The following positions are provided in nominal degree range ]-180, +180[
 # For more info on these constants, see comments in the code where they get used.
@@ -97,25 +95,17 @@ def move_to_calibrate(
     initial_pos = arm.read("Present_Position", motor_name)
 
     if positive_first:
-        p_present_pos = move_until_block(
-            arm, motor_name, positive_direction=True, while_move_hook=while_move_hook
-        )
+        p_present_pos = move_until_block(arm, motor_name, positive_direction=True, while_move_hook=while_move_hook)
     else:
-        n_present_pos = move_until_block(
-            arm, motor_name, positive_direction=False, while_move_hook=while_move_hook
-        )
+        n_present_pos = move_until_block(arm, motor_name, positive_direction=False, while_move_hook=while_move_hook)
 
     if in_between_move_hook is not None:
         in_between_move_hook()
 
     if positive_first:
-        n_present_pos = move_until_block(
-            arm, motor_name, positive_direction=False, while_move_hook=while_move_hook
-        )
+        n_present_pos = move_until_block(arm, motor_name, positive_direction=False, while_move_hook=while_move_hook)
     else:
-        p_present_pos = move_until_block(
-            arm, motor_name, positive_direction=True, while_move_hook=while_move_hook
-        )
+        p_present_pos = move_until_block(arm, motor_name, positive_direction=True, while_move_hook=while_move_hook)
 
     zero_pos = (n_present_pos + p_present_pos) / 2
 

@@ -27,15 +27,16 @@ class CameraConfig(draccus.ChoiceRegistry, abc.ABC):
 
 @CameraConfig.register_subclass("opencv")
 @dataclass
+@dataclass
 class OpenCVCameraConfig(CameraConfig):
     """
     Example of tested options for Intel Real Sense D405:
 
     ```python
-    OpenCVCameraConfig(0, 30, 640, 480)
-    OpenCVCameraConfig(0, 60, 640, 480)
-    OpenCVCameraConfig(0, 90, 640, 480)
-    OpenCVCameraConfig(0, 30, 1280, 720)
+    OpenCVCameraConfig(30, 640, 480)
+    OpenCVCameraConfig(60, 640, 480)
+    OpenCVCameraConfig(90, 640, 480)
+    OpenCVCameraConfig(30, 1280, 720)
     ```
     """
 
@@ -44,21 +45,22 @@ class OpenCVCameraConfig(CameraConfig):
     width: int | None = None
     height: int | None = None
     color_mode: str = "rgb"
-    channels: int | None = None
     rotation: int | None = None
+    channels: int | None = None
     mock: bool = False
     pixel_format: str = "MJPG"
 
     def __post_init__(self):
         if self.color_mode not in ["rgb", "bgr"]:
-            raise ValueError(
-                f"`color_mode` is expected to be 'rgb' or 'bgr', but {self.color_mode} is provided."
-            )
+            raise ValueError(f"`color_mode` is expected to be 'rgb' or 'bgr', but {self.color_mode} is provided.")
 
         self.channels = 3
 
         if self.rotation not in [-90, None, 90, 180]:
             raise ValueError(f"`rotation` must be in [-90, None, 90, 180] (got {self.rotation})")
+
+        if self.pixel_format not in ["YUYV", "MJPG"]:
+            raise ValueError(f"`pixel_format` must be in ['YUYV', 'MJPG'] (got {self.rotation})")
 
 
         if self.pixel_format not in ["YUYV", "MJPG"]:
@@ -103,9 +105,7 @@ class IntelRealSenseCameraConfig(CameraConfig):
             )
 
         if self.color_mode not in ["rgb", "bgr"]:
-            raise ValueError(
-                f"`color_mode` is expected to be 'rgb' or 'bgr', but {self.color_mode} is provided."
-            )
+            raise ValueError(f"`color_mode` is expected to be 'rgb' or 'bgr', but {self.color_mode} is provided.")
 
         self.channels = 3
 

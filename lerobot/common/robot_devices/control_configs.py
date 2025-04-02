@@ -146,7 +146,7 @@ class TorqueDisableConfig(ControlConfig):
 class TestPolicyConfig(ControlConfig):
     name: str = "act"
     task: str | None = None
-    fps: int | None = None
+    fps: int = 30
     inference_time_s: int = 60
     device: str = "cuda"
     pretrained_policy_name_or_path: str | None = None

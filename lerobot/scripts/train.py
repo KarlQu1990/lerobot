@@ -54,6 +54,22 @@ from lerobot.configs.train import TrainPipelineConfig
 from lerobot.scripts.eval import eval_policy
 
 
+dataloader: torch.utils.data.DataLoader = None
+
+
+def terminate_handler(signum, frame):
+    global dataloader
+    print(f"Receive teminate signal: {signum}")
+
+    if dataloader and hasattr(dataloader._iterator, "_shutdown_workers"):
+        dataloader._iterator._shutdown_workers()
+
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+    print("Exit now.")
+
+
 def update_policy(
     train_metrics: MetricsTracker,
     policy: PreTrainedPolicy,
@@ -238,7 +254,7 @@ def train(cfg: TrainPipelineConfig):
             log_dict = train_tracker.to_dict()
             if output_dict:
                 log_dict.update(output_dict)
-                
+
             if wandb_logger:
                 wandb_logger.log_dict(log_dict, step)
 
@@ -285,7 +301,7 @@ def train(cfg: TrainPipelineConfig):
             logging.info(eval_tracker)
 
             log_dict = {**eval_tracker.to_dict(), **eval_info}
-            if wandb_logger:    
+            if wandb_logger:
                 wandb_logger.log_dict(log_dict, step, mode="eval")
                 wandb_logger.log_video(eval_info["video_paths"][0], step, mode="eval")
             if tensorboard_logger:

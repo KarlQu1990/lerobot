@@ -34,9 +34,7 @@ def get_safe_default_codec():
     if importlib.util.find_spec("torchcodec"):
         return "torchcodec"
     else:
-        logging.warning(
-            "'torchcodec' is not available in your platform, falling back to 'pyav' as a default decoder"
-        )
+        logging.warning("'torchcodec' is not available in your platform, falling back to 'pyav' as a default decoder")
         return "pyav"
 
 
@@ -264,15 +262,13 @@ def encode_video_frames(
     video_path = Path(video_path)
     video_path.parent.mkdir(parents=True, exist_ok=True)
 
-    ffmpeg_args = OrderedDict(
-        [
-            ("-f", "image2"),
-            ("-r", str(fps)),
-            ("-i", str(imgs_dir / "frame_%06d.png")),
-            ("-vcodec", vcodec),
-            ("-pix_fmt", pix_fmt),
-        ]
-    )
+    ffmpeg_args = OrderedDict([
+        ("-f", "image2"),
+        ("-r", str(fps)),
+        ("-i", str(imgs_dir / "frame_%06d.png")),
+        ("-vcodec", vcodec),
+        ("-pix_fmt", pix_fmt),
+    ])
 
     if g is not None:
         ffmpeg_args["-g"] = str(g)
@@ -363,9 +359,7 @@ def get_audio_info(video_path: Path | str) -> dict:
         "audio.channels": audio_stream_info.get("channels", None),
         "audio.codec": audio_stream_info.get("codec_name", None),
         "audio.bit_rate": int(audio_stream_info["bit_rate"]) if audio_stream_info.get("bit_rate") else None,
-        "audio.sample_rate": int(audio_stream_info["sample_rate"])
-        if audio_stream_info.get("sample_rate")
-        else None,
+        "audio.sample_rate": int(audio_stream_info["sample_rate"]) if audio_stream_info.get("sample_rate") else None,
         "audio.bit_depth": audio_stream_info.get("bit_depth", None),
         "audio.channel_layout": audio_stream_info.get("channel_layout", None),
     }

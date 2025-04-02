@@ -87,8 +87,7 @@ class LeRobotDatasetMetadata:
     ):
         self.repo_id = repo_id
         self.revision = revision if revision else CODEBASE_VERSION
-        self.root = Path(root) if root is not None else HF_LEROBOT_HOME / repo_id
-
+        self.root = Path(root).joinpath(repo_id) if root is not None else HF_LEROBOT_HOME / repo_id
         try:
             if force_cache_sync:
                 raise FileNotFoundError
@@ -313,7 +312,7 @@ class LeRobotDatasetMetadata:
         """Creates metadata for a LeRobotDataset."""
         obj = cls.__new__(cls)
         obj.repo_id = repo_id
-        obj.root = Path(root) if root is not None else HF_LEROBOT_HOME / repo_id
+        obj.root = Path(root).joinpath(repo_id) if root is not None else HF_LEROBOT_HOME / repo_id
 
         obj.root.mkdir(parents=True, exist_ok=False)
 
@@ -326,9 +325,7 @@ class LeRobotDatasetMetadata:
                     "In this case, frames from lower fps cameras will be repeated to fill in the blanks."
                 )
         elif features is None:
-            raise ValueError(
-                "Dataset features must either come from a Robot or explicitly passed upon creation."
-            )
+            raise ValueError("Dataset features must either come from a Robot or explicitly passed upon creation.")
         else:
             # TODO(aliberts, rcadene): implement sanity check for features
             features = {**features, **DEFAULT_FEATURES}
@@ -468,7 +465,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
         """
         super().__init__()
         self.repo_id = repo_id
-        self.root = Path(root) if root else HF_LEROBOT_HOME / repo_id
+        self.root = Path(root).joinpath(repo_id) if root else HF_LEROBOT_HOME / repo_id
         self.image_transforms = image_transforms
         self.delta_timestamps = delta_timestamps
         self.episodes = episodes
@@ -484,9 +481,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
         self.root.mkdir(exist_ok=True, parents=True)
 
         # Load metadata
-        self.meta = LeRobotDatasetMetadata(
-            self.repo_id, self.root, self.revision, force_cache_sync=force_cache_sync
-        )
+        self.meta = LeRobotDatasetMetadata(self.repo_id, root, self.revision, force_cache_sync=force_cache_sync)
         if self.episodes is not None and self.meta._version >= packaging.version.parse("v2.1"):
             episodes_stats = [self.meta.episodes_stats[ep_idx] for ep_idx in self.episodes]
             self.stats = aggregate_stats(episodes_stats)
@@ -562,9 +557,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
             hub_api.upload_folder(**upload_kwargs)
 
         if not hub_api.file_exists(self.repo_id, REPOCARD_NAME, repo_type="dataset", revision=branch):
-            card = create_lerobot_dataset_card(
-                tags=tags, dataset_info=self.meta.info, license=license, **card_kwargs
-            )
+            card = create_lerobot_dataset_card(tags=tags, dataset_info=self.meta.info, license=license, **card_kwargs)
             card.push_to_hub(repo_id=self.repo_id, repo_type="dataset", revision=branch)
 
         if tag_version:
@@ -671,9 +664,9 @@ class LeRobotDataset(torch.utils.data.Dataset):
             for key, delta_idx in self.delta_indices.items()
         }
         padding = {  # Pad values outside of current episode range
-            f"{key}_is_pad": torch.BoolTensor(
-                [(idx + delta < ep_start.item()) | (idx + delta >= ep_end.item()) for delta in delta_idx]
-            )
+            f"{key}_is_pad": torch.BoolTensor([
+                (idx + delta < ep_start.item()) | (idx + delta >= ep_end.item()) for delta in delta_idx
+            ])
             for key, delta_idx in self.delta_indices.items()
         }
         return query_indices, padding
@@ -773,9 +766,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
         return ep_buffer
 
     def _get_image_file_path(self, episode_index: int, image_key: str, frame_index: int) -> Path:
-        fpath = DEFAULT_IMAGE_PATH.format(
-            image_key=image_key, episode_index=episode_index, frame_index=frame_index
-        )
+        fpath = DEFAULT_IMAGE_PATH.format(image_key=image_key, episode_index=episode_index, frame_index=frame_index)
         return self.root / fpath
 
     def _save_image(self, image: torch.Tensor | np.ndarray | PIL.Image.Image, fpath: Path) -> None:
@@ -978,9 +969,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
             if video_path.is_file():
                 # Skip if video is already encoded. Could be the case when resuming data recording.
                 continue
-            img_dir = self._get_image_file_path(
-                episode_index=episode_index, image_key=key, frame_index=0
-            ).parent
+            img_dir = self._get_image_file_path(episode_index=episode_index, image_key=key, frame_index=0).parent
             encode_video_frames(img_dir, video_path, self.fps, overwrite=True)
 
         return video_paths
@@ -1054,7 +1043,7 @@ class MultiLeRobotDataset(torch.utils.data.Dataset):
         super().__init__()
         self.repo_ids = repo_ids
         self.root = Path(root) if root else HF_LEROBOT_HOME
-        self.tolerances_s = tolerances_s if tolerances_s else {repo_id: 1e-4 for repo_id in repo_ids}
+        self.tolerances_s = tolerances_s if tolerances_s else dict.fromkeys(repo_ids, 0.0001)
         # Construct the underlying datasets passing everything but `transform` and `delta_timestamps` which
         # are handled by this class.
         self._datasets = [
@@ -1086,8 +1075,7 @@ class MultiLeRobotDataset(torch.utils.data.Dataset):
         for repo_id, ds in zip(self.repo_ids, self._datasets, strict=True):
             extra_keys = set(ds.features).difference(intersection_features)
             logging.warning(
-                f"keys {extra_keys} of {repo_id} were disabled as they are not contained in all the "
-                "other datasets."
+                f"keys {extra_keys} of {repo_id} were disabled as they are not contained in all the other datasets."
             )
             self.disabled_features.update(extra_keys)
 
