@@ -1,3 +1,17 @@
+# Copyright 2024 The HuggingFace Inc. team. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Logic to calibrate a robot arm built with feetech motors"""
 # TODO(rcadene, aliberts): move this logic into the robot code when refactoring
 
@@ -12,9 +26,7 @@ from lerobot.common.robot_devices.motors.feetech import (
 )
 from lerobot.common.robot_devices.motors.utils import MotorsBus
 
-URL_TEMPLATE = (
-    "https://raw.githubusercontent.com/huggingface/lerobot/main/media/{robot}/{arm}_{position}.webp"
-)
+URL_TEMPLATE = "https://raw.githubusercontent.com/huggingface/lerobot/main/media/{robot}/{arm}_{position}.webp"
 
 # The following positions are provided in nominal degree range ]-180, +180[
 # For more info on these constants, see comments in the code where they get used.
@@ -83,25 +95,17 @@ def move_to_calibrate(
     initial_pos = arm.read("Present_Position", motor_name)
 
     if positive_first:
-        p_present_pos = move_until_block(
-            arm, motor_name, positive_direction=True, while_move_hook=while_move_hook
-        )
+        p_present_pos = move_until_block(arm, motor_name, positive_direction=True, while_move_hook=while_move_hook)
     else:
-        n_present_pos = move_until_block(
-            arm, motor_name, positive_direction=False, while_move_hook=while_move_hook
-        )
+        n_present_pos = move_until_block(arm, motor_name, positive_direction=False, while_move_hook=while_move_hook)
 
     if in_between_move_hook is not None:
         in_between_move_hook()
 
     if positive_first:
-        n_present_pos = move_until_block(
-            arm, motor_name, positive_direction=False, while_move_hook=while_move_hook
-        )
+        n_present_pos = move_until_block(arm, motor_name, positive_direction=False, while_move_hook=while_move_hook)
     else:
-        p_present_pos = move_until_block(
-            arm, motor_name, positive_direction=True, while_move_hook=while_move_hook
-        )
+        p_present_pos = move_until_block(arm, motor_name, positive_direction=True, while_move_hook=while_move_hook)
 
     zero_pos = (n_present_pos + p_present_pos) / 2
 
@@ -443,7 +447,7 @@ def run_arm_manual_calibration(arm: MotorsBus, robot_type: str, arm_name: str, a
     # For instance, if the motor rotates 90 degree, and its value is -90 after applying the homing offset, then we know its rotation direction
     # is inverted. However, for the calibration being successful, we need everyone to follow the same target position.
     # Sometimes, there is only one possible rotation direction. For instance, if the gripper is closed, there is only one direction which
-    # corresponds to opening the gripper. When the rotation direction is ambiguous, we arbitrarely rotate clockwise from the point of view
+    # corresponds to opening the gripper. When the rotation direction is ambiguous, we arbitrarily rotate clockwise from the point of view
     # of the previous motor in the kinetic chain.
     print("\nMove arm to rotated target position")
     print("See: " + URL_TEMPLATE.format(robot=robot_type, arm=arm_type, position="rotated"))
@@ -455,6 +459,10 @@ def run_arm_manual_calibration(arm: MotorsBus, robot_type: str, arm_name: str, a
     # Drive mode indicates if the motor rotation direction should be inverted (=1) or not (=0).
     rotated_pos = arm.read("Present_Position")
     drive_mode = (rotated_pos < zero_pos).astype(np.int32)
+
+    # NOTE: 对于夹爪而言，闭合后只有一个运动方向，是确定的，不需要区分drive_mode
+    gripper_idx = arm.motor_names.index("gripper")
+    drive_mode[gripper_idx] = 0
 
     # Re-compute homing offset to take into account drive mode
     rotated_drived_pos = apply_drive_mode(rotated_pos, drive_mode)

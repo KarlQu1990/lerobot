@@ -1,0 +1,5 @@
+robot:
+  type: "so100_bimanual"
+control:
+  type: torque_disable
+

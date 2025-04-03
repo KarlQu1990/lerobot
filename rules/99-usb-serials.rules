@@ -1,3 +1,0 @@
-SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d3", ATTRS{serial}=="5876043248", SYMLINK+="ttyACM_header"
-SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d3", ATTRS{serial}=="58FA081982", SYMLINK+="ttyACM_follower"
-WS
