@@ -56,7 +56,6 @@ class ManipulatorRobotConfig(RobotConfig):
     gripper_open_degree: float | None = None
 
     mock: bool = False
-    record: bool = False
 
     def __post_init__(self):
         if self.mock:

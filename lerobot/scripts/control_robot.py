@@ -471,10 +471,6 @@ def control_robot(cfg: ControlPipelineConfig):
     logging.info(pformat(asdict(cfg)))
 
     global robot
-
-    if isinstance(cfg.control, RecordControlConfig):
-        cfg.robot.record = True
-
     robot = make_robot_from_config(cfg.robot)
 
     if isinstance(cfg.control, CalibrateControlConfig):
