@@ -19,14 +19,11 @@ This file contains utilities for recording frames from cameras. For more info lo
 import argparse
 import concurrent.futures
 import math
-import multiprocessing as mp
 import platform
 import shutil
 import subprocess
 import threading
 import time
-from multiprocessing.synchronize import Event as MpEvent
-from dataclasses import replace
 from pathlib import Path
 from threading import Thread
 

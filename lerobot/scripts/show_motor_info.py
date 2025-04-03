@@ -13,21 +13,15 @@ python lerobot/scripts/configure_motor.py \
 """
 
 import argparse
-import time
 
 
 def show_motor(port, brand, model):
     if brand == "feetech":
         from lerobot.common.robot_devices.motors.feetech import MODEL_BAUDRATE_TABLE
-        from lerobot.common.robot_devices.motors.feetech import (
-            SCS_SERIES_BAUDRATE_TABLE as SERIES_BAUDRATE_TABLE,
-        )
+
         from lerobot.common.robot_devices.motors.feetech import FeetechMotorsBus as MotorsBusClass
     elif brand == "dynamixel":
         from lerobot.common.robot_devices.motors.dynamixel import MODEL_BAUDRATE_TABLE
-        from lerobot.common.robot_devices.motors.dynamixel import (
-            X_SERIES_BAUDRATE_TABLE as SERIES_BAUDRATE_TABLE,
-        )
         from lerobot.common.robot_devices.motors.dynamixel import DynamixelMotorsBus as MotorsBusClass
     else:
         raise ValueError(
@@ -49,7 +43,6 @@ def show_motor(port, brand, model):
     except OSError as e:
         print(f"Error occurred when connecting to the motor bus: {e}")
         return
-    
 
     # Motor bus is connected, proceed with the rest of the operations
     try:
