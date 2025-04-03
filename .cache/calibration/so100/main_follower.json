@@ -1,5 +1,1 @@
-<<<<<<< HEAD
-{"homing_offset": [2033, 2999, -1117, -2003, -2357, -2311], "drive_mode": [1, 1, 0, 0, 0, 0], "start_pos": [2051, 3008, 1107, 2029, 2386, 1895], "end_pos": [-1009, -1975, 2141, 3027, 3381, 3335], "calib_mode": ["DEGREE", "DEGREE", "DEGREE", "DEGREE", "DEGREE", "LINEAR"], "motor_names": ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll", "gripper"]}
-=======
 {"homing_offset": [-2007, 3080, -1071, -2090, 2106, -2381], "drive_mode": [0, 1, 0, 0, 1, 0], "start_pos": [2071, 3134, 1092, 1904, 1085, 2005], "end_pos": [3031, -2056, 2095, 3114, -1082, 3405], "calib_mode": ["DEGREE", "DEGREE", "DEGREE", "DEGREE", "DEGREE", "LINEAR"], "motor_names": ["shoulder_pan", "shoulder_lift", "elbow_flex", "wrist_flex", "wrist_roll", "gripper"]}
->>>>>>> windows2.0
