@@ -1,17 +1,20 @@
 
 dataset:
   repo_id: hhws/so100_bimanual_transfer_6
-  root: D:\projects\lerobot_datasets
+  root: D:/projects/lerobot_datasets
   image_transforms:
     enable: false
 policy:
   type: act
   vision_backbone: resnet18
   pretrained_backbone_weights: ResNet18_Weights.IMAGENET1K_V1
+  n_action_steps: 50
+  chunk_size: 50
+  kl_weight: 10.0
+  optimizer_lr: 1e-5
 
 output_dir: outputs/train/act_so100_bimanual_clothes_8
 job_name: act_so100_bimanual_clothes_8
-device: cuda
 batch_size: 8
 steps: 100000
 save_freq: 10000

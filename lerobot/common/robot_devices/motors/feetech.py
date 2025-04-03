@@ -15,6 +15,7 @@
 import enum
 import logging
 import math
+import platform
 import time
 import traceback
 from copy import deepcopy
@@ -25,8 +26,8 @@ import tqdm
 
 from lerobot.common.robot_devices.motors.configs import FeetechMotorsBusConfig
 from lerobot.common.robot_devices.utils import RobotDeviceAlreadyConnectedError, RobotDeviceNotConnectedError
-from lerobot.common.utils.utils import capture_timestamp_utc
 from lerobot.common.utils.usb_utils import USBDeviceManager
+from lerobot.common.utils.utils import capture_timestamp_utc
 
 PROTOCOL_VERSION = 0
 BAUDRATE = 1_000_000
@@ -309,6 +310,9 @@ class FeetechMotorsBus:
 
     @cached_property
     def port_real(self) -> str:
+        if platform.system() != "Windows":
+            return self.port
+
         mgr = USBDeviceManager().load()
         if not mgr.devices:
             return self.port

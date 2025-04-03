@@ -2,7 +2,7 @@ robot:
   type: "so100_bimanual"
 control:
   type: record
-  root: D:\projects\lerobot_datasets
+  root: D:/projects/lerobot_datasets
   repo_id: hhws/so100_bimanual_clothes_7
   single_task: 将桌面上的散乱的衣服叠好。
   fps: 30

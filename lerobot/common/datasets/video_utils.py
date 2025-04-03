@@ -201,7 +201,12 @@ def decode_video_frames_torchcodec(
     frame_indices = [round(ts * average_fps) for ts in timestamps]
 
     # retrieve frames based on indices
-    frames_batch = decoder.get_frames_at(indices=frame_indices)
+    try:
+        frames_batch = decoder.get_frames_at(indices=frame_indices)
+    except Exception as e:
+        print("timestamps:", len(timestamps), timestamps, [round(ts * average_fps) for ts in timestamps], video_path)
+        raise e
+
 
     for frame, pts in zip(frames_batch.data, frames_batch.pts_seconds, strict=False):
         loaded_frames.append(frame)

@@ -2,6 +2,8 @@ robot:
   type: "so100_bimanual"
 control:
   type: test_policy
+  name: "act"
+  task:
   fps: 30
   inference_time_s: 300
   device: cuda

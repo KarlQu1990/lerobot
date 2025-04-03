@@ -49,7 +49,6 @@ dependencies = [
     "datasets>=2.19.0",
     "deepdiff>=7.0.1",
     "diffusers>=0.27.2",
-    "draccus>=0.10.0",
     "einops>=0.8.0",
     "flask>=3.0.3",
     "gdown>=5.1.0",
@@ -69,7 +68,7 @@ dependencies = [
     "rerun-sdk>=0.21.0",
     "termcolor>=2.4.0",
     "torch>=2.2.1",
-    "torchcodec>=0.2.1 ; sys_platform != 'linux' or (sys_platform == 'linux' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'armv7l')",
+    "torchcodec>=0.2.1; sys_platform != 'win32' and (sys_platform != 'linux' or (platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'armv7l'))",
     "torchvision>=0.21.0",
     "wandb>=0.16.3",
     "zarr>=2.17.0",
@@ -79,6 +78,9 @@ dependencies = [
     "lxml>=5.3.1"
 
 ]
+
+[tool.uv.sources]
+draccus = { git = "https://github.com/dlwh/draccus.git", rev = "e48252662a78a847f534766b506c2ac83c57c627" }
 
 [project.optional-dependencies]
 aloha = ["gym-aloha>=0.1.1 ; python_version < '4.0'"]

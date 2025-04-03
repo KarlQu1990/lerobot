@@ -134,9 +134,10 @@ python lerobot/scripts/control_robot.py \
 ```
 """
 
-import sys
-import signal
 import logging
+import platform
+import signal
+import sys
 import time
 from dataclasses import asdict
 from pprint import pformat
@@ -150,29 +151,29 @@ from lerobot.common.robot_devices.control_configs import (
     RecordControlConfig,
     RemoteRobotConfig,
     ReplayControlConfig,
-    TeleoperateControlConfig,
     ShowPositionConfig,
-    TorqueDisableConfig,
+    TeleoperateControlConfig,
     TestPolicyConfig,
+    TorqueDisableConfig,
 )
 from lerobot.common.robot_devices.control_utils import (
     control_loop,
     init_keyboard_listener,
+    is_headless,
     log_control_info,
     record_episode,
     reset_environment,
     sanity_check_dataset_name,
-    show_image_observation,
     sanity_check_dataset_robot_compatibility,
+    show_image_observation,
     stop_recording,
     warmup_record,
 )
 from lerobot.common.robot_devices.robots.utils import Robot, make_robot_from_config
 from lerobot.common.robot_devices.utils import busy_wait, safe_disconnect
+from lerobot.common.utils.usb_utils import USBDeviceManager
 from lerobot.common.utils.utils import has_method, init_logging, log_say
 from lerobot.configs import parser
-from lerobot.common.robot_devices.control_utils import is_headless
-from lerobot.common.utils.usb_utils import USBDeviceManager
 
 ########################################################################################
 # Control modes
@@ -436,6 +437,9 @@ def test_policy(robot: Robot, cfg: TestPolicyConfig):
             observation[name] = observation[name].unsqueeze(0)
             observation[name] = observation[name].to(cfg.device)
 
+        if cfg.task:
+            observation["task"] = [cfg.task]
+
         # Compute the next action with the policy
         # based on the current observation
         action = policy.select_action(observation)
@@ -499,8 +503,12 @@ def control_robot(cfg: ControlPipelineConfig):
 
 
 if __name__ == "__main__":
-    signal.signal(signal.SIGINT, terminate_handler)
-    signal.signal(signal.SIGBREAK, terminate_handler)
+    if platform.system() == "Windows":
+        signal.signal(signal.SIGINT, terminate_handler)
+        signal.signal(signal.SIGBREAK, terminate_handler)
+    else:
+        signal.signal(signal.SIGTERM, terminate_handler)
+        signal.signal(signal.SIGKILL, terminate_handler)
 
     USBDeviceManager().load()
     control_robot()
