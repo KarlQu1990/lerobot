@@ -418,6 +418,9 @@ def test_policy(robot: Robot, cfg: TestPolicyConfig):
     policy.to(cfg.device)
 
     time_cost = 0
+    count = 0
+    log_interval = 10
+    last_log_t = 0
 
     while True:
         start_time = time.perf_counter()
@@ -451,10 +454,15 @@ def test_policy(robot: Robot, cfg: TestPolicyConfig):
         robot.send_action(action)
 
         dt_s = time.perf_counter() - start_time
-        print("FPS: ", 1 / dt_s)
         time_cost += dt_s
+        count += 1
+
         if time_cost > cfg.inference_time_s:
             break
+
+        if time.time() - last_log_t > log_interval:
+            logging.info(f"average fps: {count / time_cost:.1f}")
+            last_log_t = time.time()
 
         elapse = 1 / cfg.fps - dt_s
         if elapse > 0:
