@@ -175,6 +175,7 @@ from lerobot.common.utils.usb_utils import USBDeviceManager
 from lerobot.common.utils.utils import has_method, init_logging, log_say
 from lerobot.configs import parser
 
+
 ########################################################################################
 # Control modes
 ########################################################################################
@@ -405,21 +406,24 @@ def test_policy(robot: Robot, cfg: TestPolicyConfig):
 
     from lerobot.common.policies.factory import get_policy_class
 
-    policy_class = get_policy_class(cfg.name)
+    policy_class = get_policy_class(cfg.policy_name)
 
-    if not cfg.pretrained_policy_name_or_path:
+    if not cfg.pretrained_name_or_path:
         logging.error("预训练权重不能为空。")
         return
 
     if not robot.is_connected:
         robot.connect()
 
-    policy = policy_class.from_pretrained(cfg.pretrained_policy_name_or_path)
+    policy = policy_class.from_pretrained(cfg.pretrained_name_or_path)
+    policy.config.n_action_steps = cfg.n_action_steps
+    policy.reset()
+
     policy.to(cfg.device)
 
     time_cost = 0
     count = 0
-    log_interval = 10
+    log_interval = 1
     last_log_t = 0
 
     while True:

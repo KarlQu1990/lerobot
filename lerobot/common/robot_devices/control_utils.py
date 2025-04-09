@@ -348,7 +348,8 @@ def control_loop(
                 timestamp_int = int(timestamp)
                 pbar.update(1)
 
-            if events["exit_early"]:
+            # 最小录制时长5秒，防止多次点击导致的异常结束
+            if timestamp > 5 and events["exit_early"]:
                 events["exit_early"] = False
                 break
 

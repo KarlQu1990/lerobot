@@ -54,6 +54,10 @@ def ensure_safe_goal_position(
     return safe_goal_pos
 
 
+DYNAMIXEL_ROBOTS = ["koch", "koch_bimanual", "aloha"]
+FEETECH_ROBOTS = ["so100", "so100_left", "so100_right", "so100_bimanual", "moss", "lekiwi"]
+
+
 class ManipulatorRobot:
     # TODO(rcadene): Implement force feedback
     """This class allows to control any manipulator robot of various number of motors.
@@ -223,9 +227,9 @@ class ManipulatorRobot:
         return available_arms
 
     def torque_disable(self):
-        if self.robot_type in ["koch", "koch_bimanual", "aloha"]:
+        if self.robot_type in DYNAMIXEL_ROBOTS:
             from lerobot.common.robot_devices.motors.dynamixel import TorqueMode
-        elif self.robot_type in ["so100", "so100_bimanual", "moss"]:
+        elif self.robot_type in FEETECH_ROBOTS:
             from lerobot.common.robot_devices.motors.feetech import TorqueMode
 
         # We assume that at connection time, arms are in a rest position, and torque can
@@ -259,11 +263,11 @@ class ManipulatorRobot:
         self.activate_calibration()
 
         # Set robot preset (e.g. torque in leader gripper for Koch v1.1)
-        if self.robot_type in ["koch", "koch_bimanual"]:
+        if self.robot_type in DYNAMIXEL_ROBOTS and "koch" in self.robot_type:
             self.set_koch_robot_preset()
-        elif self.robot_type == "aloha":
+        elif self.robot_type in DYNAMIXEL_ROBOTS and "aloha" in self.robot_type:
             self.set_aloha_robot_preset()
-        elif self.robot_type in ["so100", "moss", "so100_bimanual", "lekiwi"]:
+        elif self.robot_type in FEETECH_ROBOTS:
             self.set_so100_robot_preset()
 
         # Enable torque on all motors of the follower arms
@@ -272,7 +276,7 @@ class ManipulatorRobot:
             self.follower_arms[name].write("Torque_Enable", 1)
 
         if self.config.gripper_open_degree is not None:
-            if self.robot_type not in ["koch", "koch_bimanual"]:
+            if self.robot_type not in DYNAMIXEL_ROBOTS:
                 raise NotImplementedError(
                     f"{self.robot_type} does not support position AND current control in the handle, which is require to set the gripper open."
                 )
@@ -311,12 +315,12 @@ class ManipulatorRobot:
                 # TODO(rcadene): display a warning in __init__ if calibration file not available
                 print(f"Missing calibration file '{arm_calib_path}'")
 
-                if self.robot_type in ["koch", "koch_bimanual", "aloha"]:
+                if self.robot_type in DYNAMIXEL_ROBOTS:
                     from lerobot.common.robot_devices.robots.dynamixel_calibration import run_arm_calibration
 
                     calibration = run_arm_calibration(arm, self.robot_type, name, arm_type)
 
-                elif self.robot_type in ["so100", "so100_bimanual", "moss", "lekiwi"]:
+                elif self.robot_type in FEETECH_ROBOTS:
                     from lerobot.common.robot_devices.robots.feetech_calibration import (
                         run_arm_manual_calibration,
                     )

@@ -64,12 +64,8 @@ class ACTPolicy(PreTrainedPolicy):
         self.config = config
 
         self.normalize_inputs = Normalize(config.input_features, config.normalization_mapping, dataset_stats)
-        self.normalize_targets = Normalize(
-            config.output_features, config.normalization_mapping, dataset_stats
-        )
-        self.unnormalize_outputs = Unnormalize(
-            config.output_features, config.normalization_mapping, dataset_stats
-        )
+        self.normalize_targets = Normalize(config.output_features, config.normalization_mapping, dataset_stats)
+        self.unnormalize_outputs = Unnormalize(config.output_features, config.normalization_mapping, dataset_stats)
 
         self.model = ACT(config)
 
@@ -84,17 +80,11 @@ class ACTPolicy(PreTrainedPolicy):
         return [
             {
                 "params": [
-                    p
-                    for n, p in self.named_parameters()
-                    if not n.startswith("model.backbone") and p.requires_grad
+                    p for n, p in self.named_parameters() if not n.startswith("model.backbone") and p.requires_grad
                 ]
             },
             {
-                "params": [
-                    p
-                    for n, p in self.named_parameters()
-                    if n.startswith("model.backbone") and p.requires_grad
-                ],
+                "params": [p for n, p in self.named_parameters() if n.startswith("model.backbone") and p.requires_grad],
                 "lr": self.config.optimizer_lr_backbone,
             },
         ]
@@ -162,9 +152,7 @@ class ACTPolicy(PreTrainedPolicy):
             # each dimension independently, we sum over the latent dimension to get the total
             # KL-divergence per batch element, then take the mean over the batch.
             # (See App. B of https://arxiv.org/abs/1312.6114 for more details).
-            mean_kld = (
-                (-0.5 * (1 + log_sigma_x2_hat - mu_hat.pow(2) - (log_sigma_x2_hat).exp())).sum(-1).mean()
-            )
+            mean_kld = (-0.5 * (1 + log_sigma_x2_hat - mu_hat.pow(2) - (log_sigma_x2_hat).exp())).sum(-1).mean()
             loss_dict["kld_loss"] = mean_kld.item()
             loss = l1_loss + mean_kld * self.config.kl_weight
         else:
@@ -252,9 +240,10 @@ class ACTTemporalEnsembler:
             self.ensembled_actions_count = torch.clamp(self.ensembled_actions_count + 1, max=self.chunk_size)
             # The last action, which has no prior online average, needs to get concatenated onto the end.
             self.ensembled_actions = torch.cat([self.ensembled_actions, actions[:, -1:]], dim=1)
-            self.ensembled_actions_count = torch.cat(
-                [self.ensembled_actions_count, torch.ones_like(self.ensembled_actions_count[-1:])]
-            )
+            self.ensembled_actions_count = torch.cat([
+                self.ensembled_actions_count,
+                torch.ones_like(self.ensembled_actions_count[-1:]),
+            ])
         # "Consume" the first action.
         action, self.ensembled_actions, self.ensembled_actions_count = (
             self.ensembled_actions[:, 0],
@@ -349,18 +338,12 @@ class ACT(nn.Module):
         # Transformer encoder input projections. The tokens will be structured like
         # [latent, (robot_state), (env_state), (image_feature_map_pixels)].
         if self.config.robot_state_feature:
-            self.encoder_robot_state_input_proj = nn.Linear(
-                self.config.robot_state_feature.shape[0], config.dim_model
-            )
+            self.encoder_robot_state_input_proj = nn.Linear(self.config.robot_state_feature.shape[0], config.dim_model)
         if self.config.env_state_feature:
-            self.encoder_env_state_input_proj = nn.Linear(
-                self.config.env_state_feature.shape[0], config.dim_model
-            )
+            self.encoder_env_state_input_proj = nn.Linear(self.config.env_state_feature.shape[0], config.dim_model)
         self.encoder_latent_input_proj = nn.Linear(config.latent_dim, config.dim_model)
         if self.config.image_features:
-            self.encoder_img_feat_input_proj = nn.Conv2d(
-                backbone_model.fc.in_features, config.dim_model, kernel_size=1
-            )
+            self.encoder_img_feat_input_proj = nn.Conv2d(backbone_model.fc.in_features, config.dim_model, kernel_size=1)
         # Transformer encoder positional embeddings.
         n_1d_tokens = 1  # for the latent
         if self.config.robot_state_feature:
@@ -406,9 +389,7 @@ class ACT(nn.Module):
             latent dimension.
         """
         if self.config.use_vae and self.training:
-            assert "action" in batch, (
-                "actions must be provided when using the variational objective in training mode."
-            )
+            assert "action" in batch, "actions must be provided when using the variational objective in training mode."
 
         if "observation.images" in batch:
             batch_size = batch["observation.images"][0].shape[0]
@@ -418,9 +399,7 @@ class ACT(nn.Module):
         # Prepare the latent for input to the transformer encoder.
         if self.config.use_vae and "action" in batch:
             # Prepare the input to the VAE encoder: [cls, *joint_space_configuration, *action_sequence].
-            cls_embed = einops.repeat(
-                self.vae_encoder_cls_embed.weight, "1 d -> b 1 d", b=batch_size
-            )  # (B, 1, D)
+            cls_embed = einops.repeat(self.vae_encoder_cls_embed.weight, "1 d -> b 1 d", b=batch_size)  # (B, 1, D)
             if self.config.robot_state_feature:
                 robot_state_embed = self.vae_encoder_robot_state_input_proj(batch["observation.state"])
                 robot_state_embed = robot_state_embed.unsqueeze(1)  # (B, 1, D)
@@ -444,9 +423,7 @@ class ACT(nn.Module):
                 False,
                 device=batch["observation.state"].device,
             )
-            key_padding_mask = torch.cat(
-                [cls_joint_is_pad, batch["action_is_pad"]], axis=1
-            )  # (bs, seq+1 or 2)
+            key_padding_mask = torch.cat([cls_joint_is_pad, batch["action_is_pad"]], axis=1)  # (bs, seq+1 or 2)
 
             # Forward pass through VAE encoder to get the latent PDF parameters.
             cls_token_out = self.vae_encoder(
@@ -477,9 +454,7 @@ class ACT(nn.Module):
             encoder_in_tokens.append(self.encoder_robot_state_input_proj(batch["observation.state"]))
         # Environment state token.
         if self.config.env_state_feature:
-            encoder_in_tokens.append(
-                self.encoder_env_state_input_proj(batch["observation.environment_state"])
-            )
+            encoder_in_tokens.append(self.encoder_env_state_input_proj(batch["observation.environment_state"]))
 
         # Camera observation features and positional embeddings.
         if self.config.image_features:
@@ -539,9 +514,7 @@ class ACTEncoder(nn.Module):
         self.layers = nn.ModuleList([ACTEncoderLayer(config) for _ in range(num_layers)])
         self.norm = nn.LayerNorm(config.dim_model) if config.pre_norm else nn.Identity()
 
-    def forward(
-        self, x: Tensor, pos_embed: Tensor | None = None, key_padding_mask: Tensor | None = None
-    ) -> Tensor:
+    def forward(self, x: Tensor, pos_embed: Tensor | None = None, key_padding_mask: Tensor | None = None) -> Tensor:
         for layer in self.layers:
             x = layer(x, pos_embed=pos_embed, key_padding_mask=key_padding_mask)
         x = self.norm(x)
@@ -602,9 +575,7 @@ class ACTDecoder(nn.Module):
         encoder_pos_embed: Tensor | None = None,
     ) -> Tensor:
         for layer in self.layers:
-            x = layer(
-                x, encoder_out, decoder_pos_embed=decoder_pos_embed, encoder_pos_embed=encoder_pos_embed
-            )
+            x = layer(x, encoder_out, decoder_pos_embed=decoder_pos_embed, encoder_pos_embed=encoder_pos_embed)
         if self.norm is not None:
             x = self.norm(x)
         return x

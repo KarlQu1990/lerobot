@@ -1,5 +1,9 @@
 robot:
-  type: "so100_bimanual"
+  type: so100_bimanual
+  # type: so100_left
+  # type: so100_right
+  cameras: {}
 control:
   type: calibrate
   arms: ["left_follower", "left_leader"]
+  # arms: ["right_follower", "right_leader"]

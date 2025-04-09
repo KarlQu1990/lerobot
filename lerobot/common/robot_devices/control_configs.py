@@ -144,9 +144,11 @@ class TorqueDisableConfig(ControlConfig):
 @ControlConfig.register_subclass("test_policy")
 @dataclass
 class TestPolicyConfig(ControlConfig):
-    name: str = "act"
+    policy_name: str = "act"
+    n_action_steps: int = 100
     task: str | None = None
     fps: int = 30
     inference_time_s: int = 60
     device: str = "cuda"
-    pretrained_policy_name_or_path: str | None = None
+    pretrained_name_or_path: str | None = None
+    policy: PreTrainedConfig | None = None

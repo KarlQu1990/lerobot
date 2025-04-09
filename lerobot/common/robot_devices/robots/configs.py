@@ -593,6 +593,144 @@ class So100RobotConfig(ManipulatorRobotConfig):
     mock: bool = False
 
 
+@RobotConfig.register_subclass("so100_left")
+@dataclass
+class So100LeftRobotConfig(ManipulatorRobotConfig):
+    calibration_dir: str = ".cache/calibration/so100_left"
+    # `max_relative_target` limits the magnitude of the relative positional target vector for safety purposes.
+    # Set this to a positive scalar to have the same value for all motors, or a list that is the same length as
+    # the number of motors in your follower arms.
+    max_relative_target: int | None = None
+
+    leader_arms: dict[str, MotorsBusConfig] = field(
+        default_factory=lambda: {
+            "main": FeetechMotorsBusConfig(
+                port="left_leader",
+                motors={
+                    # name: (index, model)
+                    "shoulder_pan": [1, "sts3215"],
+                    "shoulder_lift": [2, "sts3215"],
+                    "elbow_flex": [3, "sts3215"],
+                    "wrist_flex": [4, "sts3215"],
+                    "wrist_roll": [5, "sts3215"],
+                    "gripper": [6, "sts3215"],
+                },
+            ),
+        }
+    )
+
+    follower_arms: dict[str, MotorsBusConfig] = field(
+        default_factory=lambda: {
+            "main": FeetechMotorsBusConfig(
+                port="left_follower",
+                motors={
+                    # name: (index, model)
+                    "shoulder_pan": [1, "sts3215"],
+                    "shoulder_lift": [2, "sts3215"],
+                    "elbow_flex": [3, "sts3215"],
+                    "wrist_flex": [4, "sts3215"],
+                    "wrist_roll": [5, "sts3215"],
+                    "gripper": [6, "sts3215"],
+                },
+            ),
+        }
+    )
+
+    cameras: dict[str, CameraConfig] = field(
+        default_factory=lambda: {
+            "high": OpenCVCameraConfig(
+                camera_index="high",
+                fps=30,
+                width=640,
+                height=480,
+            ),
+            "low": OpenCVCameraConfig(
+                camera_index="low",
+                fps=30,
+                width=640,
+                height=480,
+            ),
+            "left_wrist": OpenCVCameraConfig(
+                camera_index="left_wrist",
+                fps=30,
+                width=640,
+                height=480,
+            ),
+        }
+    )
+
+    mock: bool = False
+
+
+@RobotConfig.register_subclass("so100_right")
+@dataclass
+class So100RightRobotConfig(ManipulatorRobotConfig):
+    calibration_dir: str = ".cache/calibration/so100_right"
+    # `max_relative_target` limits the magnitude of the relative positional target vector for safety purposes.
+    # Set this to a positive scalar to have the same value for all motors, or a list that is the same length as
+    # the number of motors in your follower arms.
+    max_relative_target: int | None = None
+
+    leader_arms: dict[str, MotorsBusConfig] = field(
+        default_factory=lambda: {
+            "main": FeetechMotorsBusConfig(
+                port="right_leader",
+                motors={
+                    # name: (index, model)
+                    "shoulder_pan": [1, "sts3215"],
+                    "shoulder_lift": [2, "sts3215"],
+                    "elbow_flex": [3, "sts3215"],
+                    "wrist_flex": [4, "sts3215"],
+                    "wrist_roll": [5, "sts3215"],
+                    "gripper": [6, "sts3215"],
+                },
+            ),
+        }
+    )
+
+    follower_arms: dict[str, MotorsBusConfig] = field(
+        default_factory=lambda: {
+            "main": FeetechMotorsBusConfig(
+                port="right_follower",
+                motors={
+                    # name: (index, model)
+                    "shoulder_pan": [1, "sts3215"],
+                    "shoulder_lift": [2, "sts3215"],
+                    "elbow_flex": [3, "sts3215"],
+                    "wrist_flex": [4, "sts3215"],
+                    "wrist_roll": [5, "sts3215"],
+                    "gripper": [6, "sts3215"],
+                },
+            ),
+        }
+    )
+
+    cameras: dict[str, CameraConfig] = field(
+        default_factory=lambda: {
+            "high": OpenCVCameraConfig(
+                camera_index="high",
+                fps=30,
+                width=640,
+                height=480,
+            ),
+            "low": OpenCVCameraConfig(
+                camera_index="low",
+                fps=30,
+                width=640,
+                height=480,
+            ),
+            "right_wrist": OpenCVCameraConfig(
+                camera_index="right_wrist",
+                fps=30,
+                width=640,
+                height=480,
+            ),
+        }
+    )
+
+    mock: bool = False
+
+
 @RobotConfig.register_subclass("stretch")
 @dataclass
 class StretchRobotConfig(RobotConfig):
