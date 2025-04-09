@@ -1,7 +1,7 @@
 robot:
   type: so100_bimanual
 control:
-  type: teleoprate
+  type: replay
   fps: 30
   root: D:/projects/lerobot_datasets
   repo_id: hhws/so100_bimanual_transfer_6

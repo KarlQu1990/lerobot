@@ -2,10 +2,12 @@ robot:
   type: so100_bimanual
 control:
   type: test_policy
-  name: act
-  n_action_steps: 50
+  policy_name: act
+  n_action_steps: 100
   task:
   fps: 30
   inference_time_s: 300
   device: cuda
-  pretrained_policy_name_or_path: D:/projects/lerobot_trained_models/act_so100_bimanual_clothes_5/checkpoints/last/pretrained_model
+  # pretrained_name_or_path: D:/projects/lerobot_trained_models/act_so100_bimanual_clothes_5/checkpoints/last/pretrained_model
+  pretrained_name_or_path: D:/projects/lerobot_trained_models/act_so100_bimanual_transfer_7/checkpoints/last/pretrained_model
+
