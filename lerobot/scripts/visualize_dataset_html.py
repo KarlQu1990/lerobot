@@ -61,16 +61,19 @@ import shutil
 import tempfile
 from io import StringIO
 from pathlib import Path
+from typing import List
 
 import numpy as np
 import pandas as pd
 import requests
 from flask import Flask, redirect, render_template, request, url_for
+from dataclasses import dataclass, asdict
 
 from lerobot import available_datasets
 from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
 from lerobot.common.datasets.utils import IterableNamespace
 from lerobot.common.utils.utils import init_logging
+from lerobot.configs import parser
 
 
 def run_server(
@@ -376,78 +379,96 @@ def visualize_dataset_html(
             run_server(dataset, episodes, host, port, static_dir, template_dir)
 
 
-def main():
-    parser = argparse.ArgumentParser()
+@dataclass
+class VisualizeConfig:
+    repo_id: str
+    root: str | None = None
+    episodes: List[int] | None = None
+    load_from_hf_hub: bool = False
+    output_dir: str | None = None
+    serve: bool = True
+    host: str = "127.0.0.1"
+    port: int = 9090
+    force_override: bool = False
+    tolerance_s: float = 1e-4
 
-    parser.add_argument(
-        "--repo-id",
-        type=str,
-        default=None,
-        help="Name of hugging face repositery containing a LeRobotDataset dataset (e.g. `lerobot/pusht` for https://huggingface.co/datasets/lerobot/pusht).",
-    )
-    parser.add_argument(
-        "--root",
-        type=Path,
-        default=None,
-        help="Root directory for a dataset stored locally (e.g. `--root data`). By default, the dataset will be loaded from hugging face cache folder, or downloaded from the hub if available.",
-    )
-    parser.add_argument(
-        "--load-from-hf-hub",
-        type=int,
-        default=0,
-        help="Load videos and parquet files from HF Hub rather than local system.",
-    )
-    parser.add_argument(
-        "--episodes",
-        type=int,
-        nargs="*",
-        default=None,
-        help="Episode indices to visualize (e.g. `0 1 5 6` to load episodes of index 0, 1, 5 and 6). By default loads all episodes.",
-    )
-    parser.add_argument(
-        "--output-dir",
-        type=Path,
-        default=None,
-        help="Directory path to write html files and kickoff a web server. By default write them to 'outputs/visualize_dataset/REPO_ID'.",
-    )
-    parser.add_argument(
-        "--serve",
-        type=int,
-        default=1,
-        help="Launch web server.",
-    )
-    parser.add_argument(
-        "--host",
-        type=str,
-        default="127.0.0.1",
-        help="Web host used by the http server.",
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=9090,
-        help="Web port used by the http server.",
-    )
-    parser.add_argument(
-        "--force-override",
-        type=int,
-        default=0,
-        help="Delete the output directory if it exists already.",
-    )
 
-    parser.add_argument(
-        "--tolerance-s",
-        type=float,
-        default=1e-4,
-        help=(
-            "Tolerance in seconds used to ensure data timestamps respect the dataset fps value"
-            "This is argument passed to the constructor of LeRobotDataset and maps to its tolerance_s constructor argument"
-            "If not given, defaults to 1e-4."
-        ),
-    )
+@parser.wrap()
+def main(cfg: VisualizeConfig):
+    # parser = argparse.ArgumentParser()
 
-    args = parser.parse_args()
-    kwargs = vars(args)
+    # parser.add_argument(
+    #     "--repo-id",
+    #     type=str,
+    #     default=None,
+    #     help="Name of hugging face repositery containing a LeRobotDataset dataset (e.g. `lerobot/pusht` for https://huggingface.co/datasets/lerobot/pusht).",
+    # )
+    # parser.add_argument(
+    #     "--root",
+    #     type=Path,
+    #     default=None,
+    #     help="Root directory for a dataset stored locally (e.g. `--root data`). By default, the dataset will be loaded from hugging face cache folder, or downloaded from the hub if available.",
+    # )
+    # parser.add_argument(
+    #     "--load-from-hf-hub",
+    #     type=int,
+    #     default=0,
+    #     help="Load videos and parquet files from HF Hub rather than local system.",
+    # )
+    # parser.add_argument(
+    #     "--episodes",
+    #     type=int,
+    #     nargs="*",
+    #     default=None,
+    #     help="Episode indices to visualize (e.g. `0 1 5 6` to load episodes of index 0, 1, 5 and 6). By default loads all episodes.",
+    # )
+    # parser.add_argument(
+    #     "--output-dir",
+    #     type=Path,
+    #     default=None,
+    #     help="Directory path to write html files and kickoff a web server. By default write them to 'outputs/visualize_dataset/REPO_ID'.",
+    # )
+    # parser.add_argument(
+    #     "--serve",
+    #     type=int,
+    #     default=1,
+    #     help="Launch web server.",
+    # )
+    # parser.add_argument(
+    #     "--host",
+    #     type=str,
+    #     default="127.0.0.1",
+    #     help="Web host used by the http server.",
+    # )
+    # parser.add_argument(
+    #     "--port",
+    #     type=int,
+    #     default=9090,
+    #     help="Web port used by the http server.",
+    # )
+    # parser.add_argument(
+    #     "--force-override",
+    #     type=int,
+    #     default=0,
+    #     help="Delete the output directory if it exists already.",
+    # )
+
+    # parser.add_argument(
+    #     "--tolerance-s",
+    #     type=float,
+    #     default=1e-4,
+    #     help=(
+    #         "Tolerance in seconds used to ensure data timestamps respect the dataset fps value"
+    #         "This is argument passed to the constructor of LeRobotDataset and maps to its tolerance_s constructor argument"
+    #         "If not given, defaults to 1e-4."
+    #     ),
+    # )
+
+    # args = parser.parse_args()
+    # kwargs = vars(args)
+
+    kwargs = asdict(cfg)
+
     repo_id = kwargs.pop("repo_id")
     load_from_hf_hub = kwargs.pop("load_from_hf_hub")
     root = kwargs.pop("root")
@@ -461,7 +482,7 @@ def main():
             else get_dataset_info(repo_id)
         )
 
-    visualize_dataset_html(dataset, **vars(args))
+    visualize_dataset_html(dataset, **kwargs)
 
 
 if __name__ == "__main__":

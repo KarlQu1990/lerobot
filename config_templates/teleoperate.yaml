@@ -3,4 +3,4 @@ robot:
 control:
   type: teleoperate
   fps: 30
-  display_cameras: true
+  display_data: true
