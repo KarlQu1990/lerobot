@@ -30,7 +30,7 @@ Example of usage:
 - Visualize data stored on a local machine:
 ```bash
 local$ python lerobot/scripts/visualize_dataset_html.py \
-    --repo-id lerobot/pusht
+    --repo-id=lerobot/pusht
 
 local$ open http://localhost:9090
 ```
@@ -38,7 +38,7 @@ local$ open http://localhost:9090
 - Visualize data stored on a distant machine with a local viewer:
 ```bash
 distant$ python lerobot/scripts/visualize_dataset_html.py \
-    --repo-id lerobot/pusht
+    --repo-id=lerobot/pusht
 
 local$ ssh -L 9090:localhost:9090 distant  # create a ssh tunnel
 local$ open http://localhost:9090
@@ -47,12 +47,11 @@ local$ open http://localhost:9090
 - Select episodes to visualize:
 ```bash
 python lerobot/scripts/visualize_dataset_html.py \
-    --repo-id lerobot/pusht \
-    --episodes 7 3 5 1 4
+    --repo-id=lerobot/pusht \
+    --episodes='[7,3,5,1,4]'
 ```
 """
 
-import argparse
 import csv
 import json
 import logging
@@ -395,78 +394,6 @@ class VisualizeConfig:
 
 @parser.wrap()
 def main(cfg: VisualizeConfig):
-    # parser = argparse.ArgumentParser()
-
-    # parser.add_argument(
-    #     "--repo-id",
-    #     type=str,
-    #     default=None,
-    #     help="Name of hugging face repositery containing a LeRobotDataset dataset (e.g. `lerobot/pusht` for https://huggingface.co/datasets/lerobot/pusht).",
-    # )
-    # parser.add_argument(
-    #     "--root",
-    #     type=Path,
-    #     default=None,
-    #     help="Root directory for a dataset stored locally (e.g. `--root data`). By default, the dataset will be loaded from hugging face cache folder, or downloaded from the hub if available.",
-    # )
-    # parser.add_argument(
-    #     "--load-from-hf-hub",
-    #     type=int,
-    #     default=0,
-    #     help="Load videos and parquet files from HF Hub rather than local system.",
-    # )
-    # parser.add_argument(
-    #     "--episodes",
-    #     type=int,
-    #     nargs="*",
-    #     default=None,
-    #     help="Episode indices to visualize (e.g. `0 1 5 6` to load episodes of index 0, 1, 5 and 6). By default loads all episodes.",
-    # )
-    # parser.add_argument(
-    #     "--output-dir",
-    #     type=Path,
-    #     default=None,
-    #     help="Directory path to write html files and kickoff a web server. By default write them to 'outputs/visualize_dataset/REPO_ID'.",
-    # )
-    # parser.add_argument(
-    #     "--serve",
-    #     type=int,
-    #     default=1,
-    #     help="Launch web server.",
-    # )
-    # parser.add_argument(
-    #     "--host",
-    #     type=str,
-    #     default="127.0.0.1",
-    #     help="Web host used by the http server.",
-    # )
-    # parser.add_argument(
-    #     "--port",
-    #     type=int,
-    #     default=9090,
-    #     help="Web port used by the http server.",
-    # )
-    # parser.add_argument(
-    #     "--force-override",
-    #     type=int,
-    #     default=0,
-    #     help="Delete the output directory if it exists already.",
-    # )
-
-    # parser.add_argument(
-    #     "--tolerance-s",
-    #     type=float,
-    #     default=1e-4,
-    #     help=(
-    #         "Tolerance in seconds used to ensure data timestamps respect the dataset fps value"
-    #         "This is argument passed to the constructor of LeRobotDataset and maps to its tolerance_s constructor argument"
-    #         "If not given, defaults to 1e-4."
-    #     ),
-    # )
-
-    # args = parser.parse_args()
-    # kwargs = vars(args)
-
     kwargs = asdict(cfg)
 
     repo_id = kwargs.pop("repo_id")
