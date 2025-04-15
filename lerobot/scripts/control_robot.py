@@ -339,10 +339,17 @@ def record(
 
             events["rerecord_episode"] = False
             events["exit_early"] = False
+            dataset._wait_image_writer()
             dataset.clear_episode_buffer()
             continue
 
+        logging.info("start to save episode...")
         dataset.save_episode()
+        logging.info("episode saved.")
+
+        events["rerecord_episode"] = False
+        events["exit_early"] = False
+
         recorded_episodes += 1
 
         if events["stop_recording"]:

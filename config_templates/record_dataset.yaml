@@ -11,9 +11,8 @@ control:
   reset_time_s: 30
   num_episodes: 50
   resume: false
+  display_data: true
   tags: ["so100","tutorial"]
   push_to_hub: false
-  # policy:
-  #   path: path/to/pretrained_model
 
 

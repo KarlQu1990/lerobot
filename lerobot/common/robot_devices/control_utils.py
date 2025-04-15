@@ -342,20 +342,23 @@ def control_loop(
                 for key in image_keys:
                     rr.log(key, rr.Image(observation[key].numpy()), static=True)
 
+            if fps is not None:
                 dt_s = time.perf_counter() - start_loop_t
-                if time.perf_counter() - last_log_t > log_interval:
-                    log_control_info(robot, dt_s, fps=fps)
-                    last_log_t = time.perf_counter()
+                busy_wait(1 / fps - dt_s)
 
-                timestamp = time.perf_counter() - start_episode_t
-                if int(timestamp) > timestamp_int:
-                    timestamp_int = int(timestamp)
-                    pbar.update(1)
+            dt_s = time.perf_counter() - start_loop_t
+            if time.perf_counter() - last_log_t > log_interval:
+                log_control_info(robot, dt_s, fps=fps)
+                last_log_t = time.perf_counter()
 
-                # 最小录制时长5秒，防止多次点击导致的异常结束
-                if timestamp > 5 and events["exit_early"]:
-                    events["exit_early"] = False
-                    break
+            timestamp = time.perf_counter() - start_episode_t
+            if int(timestamp) > timestamp_int:
+                timestamp_int = int(timestamp)
+                pbar.update(1)
+
+            if events["exit_early"]:
+                events["exit_early"] = False
+                break
 
         if timestamp_int < control_time_s:
             pbar.update(1)
