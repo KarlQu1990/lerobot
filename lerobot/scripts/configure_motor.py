@@ -25,10 +25,11 @@ python lerobot/scripts/configure_motor.py \
 ```
 """
 
-import argparse
 import time
+from dataclasses import dataclass
 
 from lerobot.common.utils.usb_utils import USBDeviceManager
+from lerobot.configs import parser
 
 
 def get_motor_bus_cls(brand: str) -> tuple:
@@ -58,7 +59,19 @@ def get_motor_bus_cls(brand: str) -> tuple:
         )
 
 
-def configure_motor(port, brand, model, motor_idx_des, baudrate_des):
+@dataclass
+class ConfigureMotorConfig:
+    port: str = "COM4"
+    brand: str = "feetech"
+    model: str = "sts3215"
+    ID: int = 1
+    baudrate: int = 100_0000
+
+
+@parser.wrap()
+def configure_motor(cfg: ConfigureMotorConfig):
+    port, brand, model, motor_idx_des, baudrate_des = cfg.port, cfg.brand, cfg.model, cfg.ID, cfg.baudrate
+
     motor_bus_config_cls, motor_bus_cls, model_baudrate_table, series_baudrate_table = get_motor_bus_cls(brand)
 
     # Check if the provided model exists in the model_baud_rate_table
@@ -163,16 +176,6 @@ def configure_motor(port, brand, model, motor_idx_des, baudrate_des):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--port", type=str, required=True, help="Motors bus port (e.g. dynamixel,feetech)")
-    parser.add_argument("--brand", type=str, default="feetech", help="Motor brand (e.g. dynamixel,feetech)")
-    parser.add_argument("--model", type=str, default="sts3215", help="Motor model (e.g. xl330-m077,sts3215)")
-    parser.add_argument("--ID", type=int, required=True, help="Desired ID of the current motor (e.g. 1,2,3)")
-    parser.add_argument(
-        "--baudrate", type=int, default=1000000, help="Desired baudrate for the motor (default: 1000000)"
-    )
-    args = parser.parse_args()
-
     USBDeviceManager().load()
 
-    configure_motor(args.port, args.brand, args.model, args.ID, args.baudrate)
+    configure_motor()
