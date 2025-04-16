@@ -80,6 +80,7 @@ def update_policy(
     lr_scheduler=None,
     use_amp: bool = False,
     lock=None,
+    update_params: bool = False,
 ) -> tuple[MetricsTracker, dict]:
     start_time = time.perf_counter()
     device = get_device_from_parameters(policy)
@@ -89,23 +90,26 @@ def update_policy(
         # TODO(rcadene): policy.unnormalize_outputs(out_dict)
     grad_scaler.scale(loss).backward()
 
-    # Unscale the gradient of the optimizer's assigned params in-place **prior to gradient clipping**.
-    grad_scaler.unscale_(optimizer)
+    if update_params:
+        # Unscale the gradient of the optimizer's assigned params in-place **prior to gradient clipping**.
+        grad_scaler.unscale_(optimizer)
 
-    grad_norm = torch.nn.utils.clip_grad_norm_(
-        policy.parameters(),
-        grad_clip_norm,
-        error_if_nonfinite=False,
-    )
+        grad_norm = torch.nn.utils.clip_grad_norm_(
+            policy.parameters(),
+            grad_clip_norm,
+            error_if_nonfinite=False,
+        )
 
-    # Optimizer's gradients are already unscaled, so scaler.step does not unscale them,
-    # although it still skips optimizer.step() if the gradients contain infs or NaNs.
-    with lock if lock is not None else nullcontext():
-        grad_scaler.step(optimizer)
-    # Updates the scale for next iteration.
-    grad_scaler.update()
+        # Optimizer's gradients are already unscaled, so scaler.step does not unscale them,
+        # although it still skips optimizer.step() if the gradients contain infs or NaNs.
+        with lock if lock is not None else nullcontext():
+            grad_scaler.step(optimizer)
+        # Updates the scale for next iteration.
+        grad_scaler.update()
 
-    optimizer.zero_grad()
+        optimizer.zero_grad()
+
+        train_metrics.grad_norm = grad_norm.item()
 
     # Step through pytorch scheduler at every batch instead of epoch
     if lr_scheduler is not None:
@@ -116,7 +120,6 @@ def update_policy(
         policy.update()
 
     train_metrics.loss = loss.item()
-    train_metrics.grad_norm = grad_norm.item()
     train_metrics.lr = optimizer.param_groups[0]["lr"]
     train_metrics.update_s = time.perf_counter() - start_time
     return train_metrics, output_dict
@@ -219,9 +222,14 @@ def train(cfg: TrainPipelineConfig):
         cfg.batch_size, dataset.num_frames, dataset.num_episodes, train_metrics, initial_step=step
     )
 
+    update_batch_size = cfg.update_batch_size
+    accumulate_steps = max(round(update_batch_size / cfg.batch_size), 1)
+    last_update_step = -1
+    update_params = False
+
     logging.info("Start offline training on a fixed dataset")
     start_t = time.time()
-    for _ in range(step, cfg.steps):
+    for i in range(step, cfg.steps):
         start_time = time.perf_counter()
         batch = next(dl_iter)
         train_tracker.dataloading_s = time.perf_counter() - start_time
@@ -229,6 +237,12 @@ def train(cfg: TrainPipelineConfig):
         for key in batch:
             if isinstance(batch[key], torch.Tensor):
                 batch[key] = batch[key].to(device, non_blocking=True)
+
+        if last_update_step < 0 or i - last_update_step >= accumulate_steps:
+            update_params = True
+            last_update_step = i
+        else:
+            update_params = True
 
         train_tracker, output_dict = update_policy(
             train_tracker,
@@ -239,6 +253,7 @@ def train(cfg: TrainPipelineConfig):
             grad_scaler=grad_scaler,
             lr_scheduler=lr_scheduler,
             use_amp=cfg.policy.use_amp,
+            update_params=update_params,
         )
 
         # Note: eval and checkpoint happens *after* the `step`th training update has completed, so we

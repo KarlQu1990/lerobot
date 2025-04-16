@@ -13,9 +13,13 @@ policy:
   optimizer_lr: 1e-5
   optimizer_lr_backbone: 1e-5
   optimizer_weight_decay: 1e-4
+  use_amp: true
+  concat_all_camera_imgs: true
 
 output_dir: D:/projects/lerobot_trained_models/act_so100_bimanual_transfer_9
 job_name: act_so100_bimanual_transfer_9
 batch_size: 8
 steps: 150000
 save_freq: 10000
+num_workers: 1
+

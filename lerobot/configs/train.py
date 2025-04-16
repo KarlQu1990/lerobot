@@ -52,6 +52,7 @@ class TrainPipelineConfig(HubMixin):
     # Number of workers for the dataloader.
     num_workers: int = 4
     batch_size: int = 8
+    update_batch_size: int = 8
     steps: int = 100_000
     eval_freq: int = 20_000
     log_freq: int = 200
@@ -85,8 +86,7 @@ class TrainPipelineConfig(HubMixin):
                 )
             if not Path(config_path).resolve().exists():
                 raise NotADirectoryError(
-                    f"{config_path=} is expected to be a local path. "
-                    "Resuming from the hub is not supported for now."
+                    f"{config_path=} is expected to be a local path. Resuming from the hub is not supported for now."
                 )
             policy_path = Path(config_path).parent
             self.policy.pretrained_path = policy_path
@@ -166,9 +166,7 @@ class TrainPipelineConfig(HubMixin):
                     local_files_only=local_files_only,
                 )
             except HfHubHTTPError as e:
-                raise FileNotFoundError(
-                    f"{TRAIN_CONFIG_NAME} not found on the HuggingFace Hub in {model_id}"
-                ) from e
+                raise FileNotFoundError(f"{TRAIN_CONFIG_NAME} not found on the HuggingFace Hub in {model_id}") from e
 
         cli_args = kwargs.pop("cli_args", [])
         cfg = draccus.parse(cls, config_file, args=cli_args)
