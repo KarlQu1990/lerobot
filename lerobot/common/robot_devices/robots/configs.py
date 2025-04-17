@@ -644,12 +644,12 @@ class So100LeftRobotConfig(ManipulatorRobotConfig):
                 width=640,
                 height=480,
             ),
-            "low": OpenCVCameraConfig(
-                camera_index="low",
-                fps=30,
-                width=640,
-                height=480,
-            ),
+            # "low": OpenCVCameraConfig(
+            #     camera_index="low",
+            #     fps=30,
+            #     width=640,
+            #     height=480,
+            # ),
             "left_wrist": OpenCVCameraConfig(
                 camera_index="left_wrist",
                 fps=30,
@@ -713,12 +713,12 @@ class So100RightRobotConfig(ManipulatorRobotConfig):
                 width=640,
                 height=480,
             ),
-            "low": OpenCVCameraConfig(
-                camera_index="low",
-                fps=30,
-                width=640,
-                height=480,
-            ),
+            # "low": OpenCVCameraConfig(
+            #     camera_index="low",
+            #     fps=30,
+            #     width=640,
+            #     height=480,
+            # ),
             "right_wrist": OpenCVCameraConfig(
                 camera_index="right_wrist",
                 fps=30,
