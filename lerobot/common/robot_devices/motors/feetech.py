@@ -18,6 +18,7 @@ import math
 import platform
 import time
 import traceback
+import contextlib
 from copy import deepcopy
 from functools import cached_property
 
@@ -898,7 +899,8 @@ class FeetechMotorsBus:
             return
 
         if self.port_handler is not None:
-            self.port_handler.closePort()
+            with contextlib.suppress(Exception):
+                self.port_handler.closePort()
             self.port_handler = None
 
         self.packet_handler = None
