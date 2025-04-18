@@ -447,6 +447,12 @@ class ManipulatorRobot:
             self.follower_arms[name].write("Maximum_Acceleration", 254)
             self.follower_arms[name].write("Acceleration", 254)
 
+    def to_test_mode(self):
+        if self.robot_type in FEETECH_ROBOTS:
+            for name in self.follower_arms:
+                self.follower_arms[name].write("Maximum_Acceleration", 80)
+                self.follower_arms[name].write("Acceleration", 80)
+
     def teleop_step(self, record_data=False) -> None | tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]:
         if not self.is_connected:
             raise RobotDeviceNotConnectedError("ManipulatorRobot is not connected. You need to run `robot.connect()`.")

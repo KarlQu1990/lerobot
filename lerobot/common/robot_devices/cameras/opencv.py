@@ -67,7 +67,7 @@ def find_cameras(raise_when_empty=False, max_index_search_range=MAX_OPENCV_INDEX
                 "index": int(port.removeprefix("/dev/video")),
             })
     elif system == "Windows":
-        print("Linux detected. Finding available camera indices through pygrabber.")
+        print("Windows detected. Finding available camera indices through pygrabber.")
         device_paths = get_camera_device_paths()
         for idx, path in enumerate(device_paths):
             cameras.append({
@@ -332,18 +332,21 @@ class OpenCVCamera:
             backend = cv2.CAP_V4L2
         elif platform.system() == "Windows":
             backend = cv2.CAP_DSHOW
-            device_paths = get_camera_device_paths()
-            mgr = USBDeviceManager().load()
+            if isinstance(self.camera_index, int):
+                camera_idx = self.camera_index
+            else:
+                device_paths = get_camera_device_paths()
+                mgr = USBDeviceManager().load()
 
-            instance_id: str = mgr.devices[self.camera_index]["Instance ID"]
-            # 反斜杠替换成#
-            instance_id = instance_id.replace("\\", "#")
+                instance_id: str = mgr.devices[self.camera_index]["Instance ID"]
+                # 反斜杠替换成#
+                instance_id = instance_id.replace("\\", "#")
 
-            camera_idx = -1
-            for idx, path in enumerate(device_paths):
-                if instance_id.lower() in path:
-                    camera_idx = idx
-                    break
+                camera_idx = -1
+                for idx, path in enumerate(device_paths):
+                    if instance_id.lower() in path:
+                        camera_idx = idx
+                        break
         else:
             backend = cv2.CAP_AVFOUNDATION if platform.system() == "Darwin" else cv2.CAP_ANY
             camera_idx = self.camera_index

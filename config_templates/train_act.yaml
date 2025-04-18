@@ -4,6 +4,8 @@ dataset:
   root: D:/projects/lerobot_datasets
   image_transforms:
     enable: false
+  # episodes: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+
 policy:
   type: act
   vision_backbone: resnet18
@@ -19,7 +21,7 @@ policy:
 output_dir: D:/projects/lerobot_trained_models/act_so100_bimanual_transfer_9
 job_name: act_so100_bimanual_transfer_9
 batch_size: 8
-steps: 150000
+steps: 100000
 save_freq: 10000
-num_workers: 1
+num_workers: 2
 

@@ -169,7 +169,6 @@ from lerobot.common.robot_devices.control_utils import (
     reset_environment,
     sanity_check_dataset_name,
     sanity_check_dataset_robot_compatibility,
-    show_image_observation,
     stop_recording,
     warmup_record,
 )
@@ -341,6 +340,7 @@ def record(
             events["exit_early"] = False
             dataset._wait_image_writer()
             dataset.clear_episode_buffer()
+            time.sleep(1)
             continue
 
         logging.info("start to save episode...")
@@ -426,6 +426,8 @@ def test_policy(robot: Robot, cfg: TestPolicyConfig):
     if not robot.is_connected:
         robot.connect()
 
+    robot.to_test_mode()
+
     policy = policy_class.from_pretrained(cfg.pretrained_name_or_path)
     policy.config.n_action_steps = cfg.n_action_steps
     policy.reset()
@@ -444,7 +446,9 @@ def test_policy(robot: Robot, cfg: TestPolicyConfig):
         observation = robot.capture_observation()
 
         if not is_headless():
-            show_image_observation(observation)
+            image_keys = [key for key in observation if "image" in key]
+            for key in image_keys:
+                rr.log(key, rr.Image(observation[key].numpy()), static=True)
 
         # Convert to pytorch format: channel first and float32 in [0,1]
         # with batch dimension
@@ -554,6 +558,7 @@ def control_robot(cfg: ControlPipelineConfig):
     elif isinstance(cfg.control, ShowPositionConfig):
         show_position(robot, cfg.control)
     elif isinstance(cfg.control, TestPolicyConfig):
+        _init_rerun(control_config=cfg.control, session_name="lerobot_control_loop_test")
         test_policy(robot, cfg.control)
     elif isinstance(cfg.control, TorqueDisableConfig):
         torque_disable(robot, cfg.control)

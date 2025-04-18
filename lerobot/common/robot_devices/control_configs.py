@@ -157,3 +157,4 @@ class TestPolicyConfig(ControlConfig):
     device: str = "cuda"
     pretrained_name_or_path: str | None = None
     policy: PreTrainedConfig | None = None
+    display_data: bool = True
