@@ -197,3 +197,6 @@ class PreTrainedPolicy(nn.Module, HubMixin, abc.ABC):
         with caching.
         """
         raise NotImplementedError
+
+    def preprocess(self, batch: dict[str, Tensor]) -> dict[str, Tensor]:
+        return batch

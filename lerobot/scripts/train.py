@@ -20,6 +20,7 @@ import time
 # os.environ["TORCH_LOGS"] = "+dynamo"
 # os.environ["TORCHDYNAMO_VERBOSE"] = "1"
 os.environ["TORCHDYNAMO_DYNAMIC_SHAPES"] = "1"
+# os.environ["ORCHDYNAMO_REPRO_LEVEL"] = "4"
 from contextlib import nullcontext
 from pprint import pformat
 from typing import Any
@@ -62,6 +63,7 @@ dataloader: torch.utils.data.DataLoader = None
 
 torch._dynamo.config.suppress_errors = True
 torch._dynamo.config.reorderable_logging_functions.add(print)
+torch._inductor.config.fallback_random = True
 
 
 def terminate_handler(signum, frame):
@@ -94,6 +96,7 @@ def update_policy(
     policy.train()
 
     with torch.autocast(device_type=device.type) if use_amp else nullcontext():
+        batch = policy.preprocess(batch)
         loss, output_dict = policy.forward(batch)
         # TODO(rcadene): policy.unnormalize_outputs(out_dict)
 

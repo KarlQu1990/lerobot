@@ -132,14 +132,19 @@ class ACTPolicy(PreTrainedPolicy):
             self._action_queue.extend(actions.transpose(0, 1))
         return self._action_queue.popleft()
 
-    def forward(self, batch: dict[str, Tensor]) -> tuple[Tensor, dict]:
-        """Run the batch through the model and compute the loss for training or validation."""
+    def preprocess(self, batch: dict[str, Tensor]) -> dict[str, Tensor]:
         batch = self.normalize_inputs(batch)
+
         if self.config.image_features:
             batch = dict(batch)  # shallow copy so that adding a key doesn't modify the original
             batch["observation.images"] = [batch[key] for key in self.config.image_features]
 
         batch = self.normalize_targets(batch)
+        return batch
+
+    @torch.compile(mode="reduce-overhead", fullgraph=True)
+    def forward(self, batch: dict[str, Tensor]) -> tuple[Tensor, dict]:
+        """Run the batch through the model and compute the loss for training or validation."""
         actions_hat, (mu_hat, log_sigma_x2_hat) = self.model(batch)
 
         l1_loss = (
@@ -369,6 +374,7 @@ class ACT(nn.Module):
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
+    @torch.compile(mode="reduce-overhead", fullgraph=True)
     def forward(self, batch: dict[str, Tensor]) -> tuple[Tensor, tuple[Tensor, Tensor] | tuple[None, None]]:
         """A forward pass through the Action Chunking Transformer (with optional VAE encoder).
 
