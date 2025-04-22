@@ -14,7 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import logging
+import os
 import time
+
+# os.environ["TORCH_LOGS"] = "+dynamo"
+# os.environ["TORCHDYNAMO_VERBOSE"] = "1"
+os.environ["TORCHDYNAMO_DYNAMIC_SHAPES"] = "1"
 from contextlib import nullcontext
 from pprint import pformat
 from typing import Any
@@ -34,6 +39,7 @@ from lerobot.common.policies.pretrained import PreTrainedPolicy
 from lerobot.common.policies.utils import get_device_from_parameters
 from lerobot.common.utils.logging_utils import AverageMeter, MetricsTracker
 from lerobot.common.utils.random_utils import set_seed
+from lerobot.common.utils.tensorboard_utils import TensorboardLogger
 from lerobot.common.utils.train_utils import (
     get_step_checkpoint_dir,
     get_step_identifier,
@@ -48,13 +54,14 @@ from lerobot.common.utils.utils import (
     init_logging,
 )
 from lerobot.common.utils.wandb_utils import WandBLogger
-from lerobot.common.utils.tensorboard_utils import TensorboardLogger
 from lerobot.configs import parser
 from lerobot.configs.train import TrainPipelineConfig
 from lerobot.scripts.eval import eval_policy
 
-
 dataloader: torch.utils.data.DataLoader = None
+
+torch._dynamo.config.suppress_errors = True
+torch._dynamo.config.reorderable_logging_functions.add(print)
 
 
 def terminate_handler(signum, frame):
@@ -70,13 +77,34 @@ def terminate_handler(signum, frame):
     print("Exit now.")
 
 
-def update_weights(
+def update_policy(
+    train_metrics: MetricsTracker,
     policy: PreTrainedPolicy,
+    batch: Any,
     optimizer: Optimizer,
     grad_clip_norm: float,
     grad_scaler: GradScaler,
+    step: int,
+    lr_scheduler=None,
+    use_amp: bool = False,
     lock=None,
-) -> float:
+) -> tuple[MetricsTracker, dict]:
+    start_time = time.perf_counter()
+    device = get_device_from_parameters(policy)
+    policy.train()
+
+    with torch.autocast(device_type=device.type) if use_amp else nullcontext():
+        loss, output_dict = policy.forward(batch)
+        # TODO(rcadene): policy.unnormalize_outputs(out_dict)
+
+    for k in list(output_dict.keys()):
+        v = output_dict[k]
+        if isinstance(v, torch.Tensor):
+            output_dict[k] = v.item()
+
+    scaled_loss = grad_scaler.scale(loss)
+    scaled_loss.backward()
+
     # Unscale the gradient of the optimizer's assigned params in-place **prior to gradient clipping**.
     grad_scaler.unscale_(optimizer)
 
@@ -95,36 +123,6 @@ def update_weights(
 
     optimizer.zero_grad()
 
-    return grad_norm
-
-
-def update_policy(
-    train_metrics: MetricsTracker,
-    policy: PreTrainedPolicy,
-    batch: Any,
-    optimizer: Optimizer,
-    grad_clip_norm: float,
-    grad_scaler: GradScaler,
-    update_params: bool = True,
-    accumulate_steps: int = 1,
-    lr_scheduler=None,
-    use_amp: bool = False,
-    lock=None,
-) -> tuple[MetricsTracker, dict]:
-    start_time = time.perf_counter()
-    device = get_device_from_parameters(policy)
-    policy.train()
-    with torch.autocast(device_type=device.type) if use_amp else nullcontext():
-        loss, output_dict = policy.forward(batch)
-        # TODO(rcadene): policy.unnormalize_outputs(out_dict)
-        loss = loss / accumulate_steps
-
-    grad_scaler.scale(loss).backward()
-
-    if update_params:
-        grad_norm = update_weights(policy, optimizer, grad_clip_norm, grad_scaler, lock)
-        train_metrics.grad_norm = grad_norm.item()
-
     # Step through pytorch scheduler at every batch instead of epoch
     if lr_scheduler is not None:
         lr_scheduler.step()
@@ -135,7 +133,11 @@ def update_policy(
 
     train_metrics.loss = loss.item()
     train_metrics.lr = optimizer.param_groups[0]["lr"]
-    train_metrics.update_s = time.perf_counter() - start_time
+    train_metrics.grad_norm = grad_norm.item()
+    # 使用compile时，第一次推理耗时较长，此处去除耗时统计
+    if step > 0:
+        train_metrics.update_s = time.perf_counter() - start_time
+
     return train_metrics, output_dict
 
 
@@ -224,6 +226,8 @@ def train(cfg: TrainPipelineConfig):
 
     policy.train()
 
+    policy = torch.compile(policy, mode="reduce-overhead", fullgraph=True)
+
     train_metrics = {
         "loss": AverageMeter("loss", ":.3f"),
         "grad_norm": AverageMeter("grdn", ":.3f"),
@@ -236,13 +240,13 @@ def train(cfg: TrainPipelineConfig):
         cfg.batch_size, dataset.num_frames, dataset.num_episodes, train_metrics, initial_step=step
     )
 
-    update_batch_size = cfg.update_batch_size
-    accumulate_steps = max(round(update_batch_size / cfg.batch_size), 1)
-
     logging.info("Start offline training on a fixed dataset")
-    start_t = time.time()
+    start_t = time.perf_counter()
+    initial_step = step
+    first_end_t = None
     for i in range(step, cfg.steps):
         start_time = time.perf_counter()
+
         batch = next(dl_iter)
         train_tracker.dataloading_s = time.perf_counter() - start_time
 
@@ -250,19 +254,16 @@ def train(cfg: TrainPipelineConfig):
             if isinstance(batch[key], torch.Tensor):
                 batch[key] = batch[key].to(device, non_blocking=True)
 
-        update_params = bool((i + 1) % accumulate_steps == 0 or i == cfg.steps - 1)
-
         train_tracker, output_dict = update_policy(
             train_tracker,
             policy,
             batch,
             optimizer,
             cfg.optimizer.grad_clip_norm,
-            grad_scaler=grad_scaler,
+            grad_scaler,
+            i - initial_step,
             lr_scheduler=lr_scheduler,
             use_amp=cfg.policy.use_amp,
-            accumulate_steps=accumulate_steps,
-            update_params=update_params,
         )
 
         # Note: eval and checkpoint happens *after* the `step`th training update has completed, so we
@@ -331,12 +332,18 @@ def train(cfg: TrainPipelineConfig):
             if tensorboard_logger:
                 tensorboard_logger.log_dict(log_dict, step, mode="eval")
 
+        if i == initial_step + 1:
+            first_end_t = time.perf_counter()
+
     if eval_env:
         eval_env.close()
 
-    end_t = time.time()
-    time_cost = (end_t - start_t) / 3600
-    logging.info(f"End of training, time cost: {time_cost:.2f} hours.")
+    end_t = time.perf_counter()
+    total_time_cost = (end_t - start_t) / 3600
+    valid_time_cost = (end_t - first_end_t) / 3600
+    logging.info(
+        f"End of training, total time cost: {total_time_cost:.2f} hours, valid time cost(no warmup): {valid_time_cost:.2f} hours"
+    )
 
 
 if __name__ == "__main__":

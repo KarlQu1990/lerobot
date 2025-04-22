@@ -26,7 +26,7 @@ from lerobot.common.optim import OptimizerConfig
 from lerobot.common.optim.schedulers import LRSchedulerConfig
 from lerobot.common.utils.hub import HubMixin
 from lerobot.configs import parser
-from lerobot.configs.default import DatasetConfig, EvalConfig, WandBConfig, TensorboardConfig
+from lerobot.configs.default import DatasetConfig, EvalConfig, TensorboardConfig, WandBConfig
 from lerobot.configs.policies import PreTrainedConfig
 
 TRAIN_CONFIG_NAME = "train_config.json"
@@ -52,7 +52,6 @@ class TrainPipelineConfig(HubMixin):
     # Number of workers for the dataloader.
     num_workers: int = 4
     batch_size: int = 8
-    update_batch_size: int = 8
     steps: int = 100_000
     eval_freq: int = 20_000
     log_freq: int = 200
