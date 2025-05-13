@@ -49,10 +49,6 @@ dependencies = [
     "datasets>=2.19.0",
     "deepdiff>=7.0.1",
     "diffusers>=0.27.2",
-<<<<<<< HEAD
-=======
-    "draccus==0.10.0",
->>>>>>> main-origin
     "einops>=0.8.0",
     "flask>=3.0.3",
     "gdown>=5.1.0",
