@@ -372,7 +372,7 @@ def visualize_dataset_html(
         if isinstance(dataset, LeRobotDataset):
             ln_videos_dir = static_dir / "videos"
             if not ln_videos_dir.exists():
-                ln_videos_dir.symlink_to((dataset.root / "videos").resolve())
+                ln_videos_dir.symlink_to((dataset.root / "videos").resolve().as_posix())
 
         if serve:
             run_server(dataset, episodes, host, port, static_dir, template_dir)

@@ -318,6 +318,7 @@ def control_loop(
                 observation, action = robot.teleop_step(record_data=True)
             else:
                 observation = robot.capture_observation()
+                action = None
 
                 if policy is not None:
                     pred_action = predict_action(
