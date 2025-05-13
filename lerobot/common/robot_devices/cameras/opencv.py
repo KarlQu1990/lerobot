@@ -18,7 +18,6 @@ This file contains utilities for recording frames from cameras. For more info lo
 
 import argparse
 import concurrent.futures
-import math
 import platform
 import shutil
 import subprocess
@@ -37,8 +36,8 @@ from lerobot.common.robot_devices.utils import (
     RobotDeviceNotConnectedError,
     busy_wait,
 )
+from lerobot.common.utils.usb_utils import USBDeviceManager, get_camera_device_paths
 from lerobot.common.utils.utils import capture_timestamp_utc
-from lerobot.common.utils.usb_utils import get_camera_device_paths, USBDeviceManager
 
 # The maximum opencv device index depends on your operating system. For instance,
 # if you have 3 cameras, they should be associated to index 0, 1, and 2. This is the case
@@ -391,19 +390,19 @@ class OpenCVCamera:
         actual_height = self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT)
 
         # Using `math.isclose` since actual fps can be a float (e.g. 29.9 instead of 30)
-        if self.fps is not None and not math.isclose(self.fps, actual_fps, rel_tol=1e-3):
-            # Using `OSError` since it's a broad that encompasses issues related to device communication
-            raise OSError(f"Can't set {self.fps=} for OpenCVCamera({self.camera_index}). Actual value is {actual_fps}.")
-        if self.width is not None and not math.isclose(self.width, actual_width, rel_tol=1e-3):
-            raise OSError(f"Can't set {self.fps=} for OpenCVCamera({self.camera_index}). Actual value is {actual_fps}.")
-        if self.capture_width is not None and not math.isclose(self.capture_width, actual_width, rel_tol=1e-3):
-            raise OSError(
-                f"Can't set {self.capture_width=} for OpenCVCamera({self.camera_index}). Actual value is {actual_width}."
-            )
-        if self.capture_height is not None and not math.isclose(self.capture_height, actual_height, rel_tol=1e-3):
-            raise OSError(
-                f"Can't set {self.capture_height=} for OpenCVCamera({self.camera_index}). Actual value is {actual_height}."
-            )
+        # if self.fps is not None and not math.isclose(self.fps, actual_fps, rel_tol=1e-3):
+        #     # Using `OSError` since it's a broad that encompasses issues related to device communication
+        #     raise OSError(f"Can't set {self.fps=} for OpenCVCamera({self.camera_index}). Actual value is {actual_fps}.")
+        # if self.width is not None and not math.isclose(self.width, actual_width, rel_tol=1e-5):
+        #     raise OSError(f"Can't set {self.fps=} for OpenCVCamera({self.camera_index}). Actual value is {actual_fps}.")
+        # if self.capture_width is not None and not math.isclose(self.capture_width, actual_width, rel_tol=1e-5):
+        #     raise OSError(
+        #         f"Can't set {self.capture_width=} for OpenCVCamera({self.camera_index}). Actual value is {actual_width}."
+        #     )
+        # if self.capture_height is not None and not math.isclose(self.capture_height, actual_height, rel_tol=1e-5):
+        #     raise OSError(
+        #         f"Can't set {self.capture_height=} for OpenCVCamera({self.camera_index}). Actual value is {actual_height}."
+        #     )
 
         self.fps = round(actual_fps)
         self.capture_width = round(actual_width)

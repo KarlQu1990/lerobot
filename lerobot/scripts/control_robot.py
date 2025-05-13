@@ -135,10 +135,10 @@ python lerobot/scripts/control_robot.py \
 """
 
 import logging
+import os
 import platform
 import signal
 import sys
-import os
 import time
 from dataclasses import asdict
 from pprint import pformat
@@ -177,7 +177,6 @@ from lerobot.common.robot_devices.utils import busy_wait, safe_disconnect
 from lerobot.common.utils.usb_utils import USBDeviceManager
 from lerobot.common.utils.utils import has_method, init_logging, log_say
 from lerobot.configs import parser
-
 
 ########################################################################################
 # Control modes
