@@ -27,6 +27,7 @@ from lerobot.common.robot_devices.motors.configs import (
     DynamixelMotorsBusConfig,
     FeetechMotorsBusConfig,
     MotorsBusConfig,
+    PiperMotorsBusConfig,
 )
 
 
@@ -725,6 +726,81 @@ class So100RightRobotConfig(ManipulatorRobotConfig):
                 width=640,
                 height=480,
             ),
+        }
+    )
+
+    mock: bool = False
+
+
+@RobotConfig.register_subclass("piper_left")
+@dataclass
+class PiperRobotConfig(ManipulatorRobotConfig):
+    calibration_dir: str = ".cache/calibration/piper_left"
+    # `max_relative_target` limits the magnitude of the relative positional target vector for safety purposes.
+    # Set this to a positive scalar to have the same value for all motors, or a list that is the same length as
+    # the number of motors in your follower arms.
+    max_relative_target: int | None = None
+
+    leader_arms: dict[str, MotorsBusConfig] = field(
+        default_factory=lambda: {
+            "main": PiperMotorsBusConfig(
+                host="192.168.191.60",
+                port=5008,
+                motors={
+                    # name: (index, model)
+                    "shoulder_pan": [1, "unknown"],
+                    "shoulder_lift": [2, "unknown"],
+                    "elbow_flex": [3, "unknown"],
+                    "wrist_flex": [4, "unknown"],
+                    "wrist_roll": [5, "unknown"],
+                    "wrist_rotate": [6, "unknown"],
+                    "gripper": [7, "unknown"],
+                },
+                is_leader=True,
+            ),
+        }
+    )
+
+    follower_arms: dict[str, MotorsBusConfig] = field(
+        default_factory=lambda: {
+            "main": PiperMotorsBusConfig(
+                host="192.168.191.60",
+                port=5008,
+                motors={
+                    # name: (index, model)
+                    "shoulder_pan": [1, "unknown"],
+                    "shoulder_lift": [2, "unknown"],
+                    "elbow_flex": [3, "unknown"],
+                    "wrist_flex": [4, "unknown"],
+                    "wrist_roll": [5, "unknown"],
+                    "wrist_rotate": [6, "unknown"],
+                    "gripper": [7, "unknown"],
+                },
+                is_leader=False,
+            ),
+        }
+    )
+
+    cameras: dict[str, CameraConfig] = field(
+        default_factory=lambda: {
+            "high": OpenCVCameraConfig(
+                camera_index="high",
+                fps=30,
+                width=640,
+                height=480,
+            ),
+            # "low": OpenCVCameraConfig(
+            #     camera_index="low",
+            #     fps=30,
+            #     width=640,
+            #     height=480,
+            # ),
+            # "right_wrist": OpenCVCameraConfig(
+            #     camera_index="right_wrist",
+            #     fps=30,
+            #     width=640,
+            #     height=480,
+            # ),
         }
     )
 

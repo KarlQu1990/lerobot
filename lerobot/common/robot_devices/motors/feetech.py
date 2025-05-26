@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
 import enum
 import logging
 import math
 import platform
 import time
 import traceback
-import contextlib
 from copy import deepcopy
 from functools import cached_property
 

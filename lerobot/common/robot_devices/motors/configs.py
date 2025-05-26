@@ -39,3 +39,13 @@ class FeetechMotorsBusConfig(MotorsBusConfig):
     port: str
     motors: dict[str, tuple[int, str]]
     mock: bool = False
+
+
+@MotorsBusConfig.register_subclass("piper")
+@dataclass
+class PiperMotorsBusConfig(MotorsBusConfig):
+    host: str
+    port: int
+    motors: dict[str, tuple[int, str]]
+    mock: bool = False
+    is_leader: bool = False

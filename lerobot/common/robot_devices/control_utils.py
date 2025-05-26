@@ -16,19 +16,19 @@
 # Utilities
 ########################################################################################
 
-import math
 import logging
+import math
 import time
 import traceback
-import cv2
-import numpy as np
-import tqdm
 from contextlib import nullcontext
 from copy import copy
 from functools import cache
 
+import cv2
+import numpy as np
 import rerun as rr
 import torch
+import tqdm
 from deepdiff import DeepDiff
 from termcolor import colored
 
@@ -310,6 +310,9 @@ def control_loop(
     start_episode_t = time.perf_counter()
     log_interval = 5
     last_log_t = 0
+    # 定期清理rerun缓存
+    last_clear_time = time.time()
+    clear_interval = 5
     with tqdm.tqdm(total=control_time_s, desc="视频进度") as pbar:
         while timestamp < control_time_s:
             start_loop_t = time.perf_counter()
@@ -340,8 +343,15 @@ def control_loop(
                         rr.log(f"sent_{k}_{i}", rr.Scalar(vv.numpy()))
 
                 image_keys = [key for key in observation if "image" in key]
+                diff = time.time() - last_clear_time
                 for key in image_keys:
                     rr.log(key, rr.Image(observation[key].numpy()), static=True)
+                    if diff > clear_interval:
+                        logging.info(f"clear image cache: {key}")
+                        rr.log(key, rr.Clear(recursive=True))
+
+                if diff > clear_interval:
+                    last_clear_time = time.time()
 
             if fps is not None:
                 dt_s = time.perf_counter() - start_loop_t
