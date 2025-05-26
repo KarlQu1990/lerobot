@@ -49,3 +49,4 @@ class PiperMotorsBusConfig(MotorsBusConfig):
     motors: dict[str, tuple[int, str]]
     mock: bool = False
     is_leader: bool = False
+    teleoperate_mode: bool = True

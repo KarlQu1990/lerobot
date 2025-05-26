@@ -4,6 +4,7 @@ import socket
 import struct
 import time
 import traceback
+from copy import deepcopy
 from threading import Event, RLock, Thread
 from typing import List
 
@@ -14,8 +15,8 @@ from lerobot.common.robot_devices.utils import RobotDeviceAlreadyConnectedError
 from lerobot.common.utils.utils import capture_timestamp_utc
 
 PIPER_CONTROL_TABLE = {
-    "Present_Position": (3, 2),
-    "Goal_Position": (5, 1),
+    "Present_Position": "joints",
+    "Goal_Position": "joints",
 }
 
 
@@ -67,6 +68,10 @@ class ArmUDPController(object):
         self.recv_thread.start()
 
     def write(self, joints: List[float], emergency: bool = False, enable: bool = True, teleoperate_mode: bool = True):
+        if teleoperate_mode:
+            # 遥操作模式下不支持写，直接跳过
+            return
+
         if len(joints) != 7:
             raise ValueError("需要提供7个关节角度")
 
@@ -80,7 +85,7 @@ class ArmUDPController(object):
         padding_len = 64 - len(data) - 5
         data += b"\x00" * padding_len
 
-        mode_flag = 0x01 if teleoperate_mode else 0x00
+        mode_flag = 0x00 if teleoperate_mode else 0x01
 
         data += struct.pack("<B", mode_flag)
         data += struct.pack("<HB", 101, self.frame_id % 256)
@@ -132,8 +137,8 @@ class ArmUDPController(object):
         logging.info("[恢复流程] 发送恢复启用指令...")
         self.write([0] * 7, emergency=False, enable=True, teleoperate_mode=teleoperate_mode)
 
-    def read(self):
-        return self._recv_data
+    def read(self, data_name: str):
+        return self._recv_data[data_name]
 
 
 def get_group_sync_key(data_name, motor_names):
@@ -165,29 +170,25 @@ class MotorsBus(object):
         config: PiperMotorsBusConfig,
     ):
         self.port = config.port
+        self.host = self.host
         self.motors = config.motors
-        self.mock = config.mock
         self.is_leader = config.is_leader
+        self.teleoperate_mode = config.teleoperate_mode
 
-        # self.model_ctrl_table = deepcopy(MODEL_CONTROL_TABLE)
-        # self.model_resolution = deepcopy(MODEL_RESOLUTION)
+        self.model_ctrl_table = deepcopy(MODEL_CONTROL_TABLE)
 
-        self.port_handler = None
-        self.packet_handler = None
         self.calibration = None
         self.is_connected = False
-        self.group_readers = {}
-        self.group_writers = {}
-        self.logs = {}
 
+        self.logs = {}
         self.track_positions = {}
 
-        self.controller = ArmUDPController(self.host, self.port)
+        self.controller = ArmUDPController(self.host, self.port, teleoperate_mode=self.teleoperate_mode)
 
     def connect(self):
         if self.is_connected:
             raise RobotDeviceAlreadyConnectedError(
-                f"FeetechMotorsBus({self.port}) is already connected. Do not call `motors_bus.connect()` twice."
+                f"{self.__class__.__name__}({self.port}) is already connected. Do not call `motors_bus.connect()` twice."
             )
 
         try:
@@ -209,6 +210,10 @@ class MotorsBus(object):
     @property
     def motor_names(self) -> list[str]:
         return list(self.motors.keys())
+
+    @property
+    def motor_models(self) -> list[str]:
+        return [model for _, model in self.motors.values()]
 
     def set_calibration(self, calibration: dict[str, list]):
         self.calibration = calibration
@@ -237,10 +242,11 @@ class MotorsBus(object):
 
         values = []
 
-        data = self.controller.read()
+        suffix = self.model_ctrl_table[model][data_name]
         prefix = "leader" if self.is_leader else "follower"
-        joints = data[f"{prefix}_joints"]
+        data_name = f"{prefix}_{suffix}"
 
+        joints = self.controller.read(data_name)
         for idx in motor_ids:
             value = joints[idx - 1]
             values.append(value)
@@ -259,11 +265,6 @@ class MotorsBus(object):
 
     def write(self, data_name, values: int | float | np.ndarray, motor_names: str | list[str] | None = None):
         start_time = time.perf_counter()
-
-        if self.mock:
-            pass
-        else:
-            pass
 
         if motor_names is None:
             motor_names = self.motor_names
@@ -284,8 +285,7 @@ class MotorsBus(object):
             models.append(model)
 
         values = values.tolist()
-
-        # TODO:写逻辑实现
+        self.controller.write(values, teleoperate_mode=self.teleoperate_mode)
 
         # log the number of seconds it took to write the data to the motors
         delta_ts_name = get_log_name("delta_timestamp_s", "write", data_name, motor_names)
@@ -297,7 +297,11 @@ class MotorsBus(object):
         self.logs[ts_utc_name] = capture_timestamp_utc()
 
     def disconnect(self):
-        pass
+        if not self.is_connected:
+            return
+
+        self.controller.stop()
+        self.is_connected = False
 
     def __del__(self):
         if getattr(self, "is_connected", False):
