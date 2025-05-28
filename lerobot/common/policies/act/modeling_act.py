@@ -24,7 +24,6 @@ from collections import deque
 from itertools import chain
 from typing import Callable
 
-import einops
 import numpy as np
 import torch
 import torch.nn.functional as F  # noqa: N812
@@ -403,7 +402,7 @@ class ACT(nn.Module):
         # Prepare the latent for input to the transformer encoder.
         if self.config.use_vae and "action" in batch:
             # Prepare the input to the VAE encoder: [cls, *joint_space_configuration, *action_sequence].
-            cls_embed = einops.repeat(self.vae_encoder_cls_embed.weight, "1 d -> b 1 d", b=batch_size)  # (B, 1, D)
+            cls_embed = self.vae_encoder_cls_embed.weight.expand(batch_size, -1, -1)  # (B, 1, D)
             if self.config.robot_state_feature:
                 robot_state_embed = self.vae_encoder_robot_state_input_proj(batch["observation.state"])
                 robot_state_embed = robot_state_embed.unsqueeze(1)  # (B, 1, D)
@@ -472,8 +471,12 @@ class ACT(nn.Module):
                 cam_features = self.encoder_img_feat_input_proj(cam_features)
 
                 # Rearrange features to (sequence, batch, dim).
-                cam_features = einops.rearrange(cam_features, "b c h w -> (h w) b c")
-                cam_pos_embed = einops.rearrange(cam_pos_embed, "b c h w -> (h w) b c")
+                cam_features = cam_features.permute(2, 3, 0, 1).reshape(
+                    -1, cam_features.shape[0], cam_features.shape[1]
+                )
+                cam_pos_embed = cam_pos_embed.permute(2, 3, 0, 1).reshape(
+                    -1, cam_pos_embed.shape[0], cam_pos_embed.shape[1]
+                )
 
                 all_cam_features.append(cam_features)
                 all_cam_pos_embeds.append(cam_pos_embed)
