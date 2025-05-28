@@ -84,6 +84,9 @@ if platform.system() == "Windows":
 else:
 
     class USBDeviceManager(object):
+        _lock = RLock()
+        _instance = None
+
         def __new__(cls, *args, **kwargs):
             if cls._instance is None:
                 with cls._lock:

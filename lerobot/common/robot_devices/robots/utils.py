@@ -22,8 +22,8 @@ from lerobot.common.robot_devices.robots.configs import (
     ManipulatorRobotConfig,
     MossRobotConfig,
     RobotConfig,
-    So100RobotConfig,
     So100BimanualRobotConfig,
+    So100RobotConfig,
     StretchRobotConfig,
 )
 
@@ -46,7 +46,8 @@ class Robot(Protocol):
     def capture_observation(self): ...
     def send_action(self, action): ...
     def disconnect(self): ...
-    def to_test_mode(self): ...
+    def to_follower_control_mode(self): ...
+    def to_teleoperate_mode(self): ...
 
 
 def make_robot_config(robot_type: str, **kwargs) -> RobotConfig:

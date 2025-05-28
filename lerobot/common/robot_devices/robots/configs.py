@@ -745,16 +745,16 @@ class PiperRobotConfig(ManipulatorRobotConfig):
         default_factory=lambda: {
             "main": PiperMotorsBusConfig(
                 host="192.168.191.60",
-                port=5008,
+                port=5009,
                 motors={
                     # name: (index, model)
-                    "shoulder_pan": [1, "unknown"],
-                    "shoulder_lift": [2, "unknown"],
-                    "elbow_flex": [3, "unknown"],
-                    "wrist_flex": [4, "unknown"],
-                    "wrist_roll": [5, "unknown"],
-                    "wrist_rotate": [6, "unknown"],
-                    "gripper": [7, "unknown"],
+                    "shoulder_pan": [1, "piper"],
+                    "shoulder_lift": [2, "piper"],
+                    "elbow_flex": [3, "piper"],
+                    "wrist_flex": [4, "piper"],
+                    "wrist_roll": [5, "piper"],
+                    "wrist_rotate": [6, "piper"],
+                    "gripper": [7, "piper"],
                 },
                 is_leader=True,
             ),
@@ -765,16 +765,16 @@ class PiperRobotConfig(ManipulatorRobotConfig):
         default_factory=lambda: {
             "main": PiperMotorsBusConfig(
                 host="192.168.191.60",
-                port=5008,
+                port=5009,
                 motors={
                     # name: (index, model)
-                    "shoulder_pan": [1, "unknown"],
-                    "shoulder_lift": [2, "unknown"],
-                    "elbow_flex": [3, "unknown"],
-                    "wrist_flex": [4, "unknown"],
-                    "wrist_roll": [5, "unknown"],
-                    "wrist_rotate": [6, "unknown"],
-                    "gripper": [7, "unknown"],
+                    "shoulder_pan": [1, "piper"],
+                    "shoulder_lift": [2, "piper"],
+                    "elbow_flex": [3, "piper"],
+                    "wrist_flex": [4, "piper"],
+                    "wrist_roll": [5, "piper"],
+                    "wrist_rotate": [6, "piper"],
+                    "gripper": [7, "piper"],
                 },
                 is_leader=False,
             ),
@@ -795,12 +795,12 @@ class PiperRobotConfig(ManipulatorRobotConfig):
             #     width=640,
             #     height=480,
             # ),
-            # "right_wrist": OpenCVCameraConfig(
-            #     camera_index="right_wrist",
-            #     fps=30,
-            #     width=640,
-            #     height=480,
-            # ),
+            "left_wrist": OpenCVCameraConfig(
+                camera_index="left_wrist",
+                fps=30,
+                width=640,
+                height=480,
+            ),
         }
     )
 

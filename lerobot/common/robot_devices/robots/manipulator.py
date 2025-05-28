@@ -56,6 +56,7 @@ def ensure_safe_goal_position(
 
 DYNAMIXEL_ROBOTS = ["koch", "koch_bimanual", "aloha"]
 FEETECH_ROBOTS = ["so100", "so100_left", "so100_right", "so100_bimanual", "moss", "lekiwi"]
+PIPER_ROBOTS = ["piper_left", "piper_right", "piper_bimanual"]
 
 
 class ManipulatorRobot:
@@ -231,6 +232,8 @@ class ManipulatorRobot:
             from lerobot.common.robot_devices.motors.dynamixel import TorqueMode
         elif self.robot_type in FEETECH_ROBOTS:
             from lerobot.common.robot_devices.motors.feetech import TorqueMode
+        elif self.robot_type in PIPER_ROBOTS:
+            from lerobot.common.robot_devices.motors.piper import TorqueMode
 
         # We assume that at connection time, arms are in a rest position, and torque can
         # be safely disabled to run calibration and/or set robot preset configurations.
@@ -326,11 +329,14 @@ class ManipulatorRobot:
                     )
 
                     calibration = run_arm_manual_calibration(arm, self.robot_type, name, arm_type)
+                else:
+                    calibration = {}
 
-                print(f"Calibration is done! Saving calibration file '{arm_calib_path}'")
-                arm_calib_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(arm_calib_path, "w") as f:
-                    json.dump(calibration, f)
+                if calibration:
+                    print(f"Calibration is done! Saving calibration file '{arm_calib_path}'")
+                    arm_calib_path.parent.mkdir(parents=True, exist_ok=True)
+                    with open(arm_calib_path, "w") as f:
+                        json.dump(calibration, f)
 
             return calibration
 
@@ -447,11 +453,24 @@ class ManipulatorRobot:
             self.follower_arms[name].write("Maximum_Acceleration", 254)
             self.follower_arms[name].write("Acceleration", 254)
 
-    def to_test_mode(self):
+    def to_teleoperate_mode(self):
+        if self.robot_type in PIPER_ROBOTS:
+            for name in self.leader_arms:
+                self.leader_arms[name].to_teleoperate_mode()
+                self.leader_arms[name].to_teleoperate_mode()
+            for name in self.follower_arms:
+                self.follower_arms[name].to_teleoperate_mode()
+                self.follower_arms[name].to_teleoperate_mode()
+
+    def to_follower_control_mode(self):
         if self.robot_type in FEETECH_ROBOTS:
             for name in self.follower_arms:
                 self.follower_arms[name].write("Maximum_Acceleration", 80)
                 self.follower_arms[name].write("Acceleration", 80)
+        elif self.robot_type in PIPER_ROBOTS:
+            for name in self.follower_arms:
+                self.follower_arms[name].to_follower_control_mode()
+                self.follower_arms[name].to_follower_control_mode()
 
     def teleop_step(self, record_data=False) -> None | tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]:
         if not self.is_connected:

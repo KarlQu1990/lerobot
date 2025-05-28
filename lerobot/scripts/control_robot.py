@@ -249,6 +249,8 @@ def calibrate(robot: Robot, cfg: CalibrateControlConfig):
 
 @safe_disconnect
 def teleoperate(robot: Robot, cfg: TeleoperateControlConfig):
+    robot.to_teleoperate_mode()
+
     control_loop(
         robot,
         control_time_s=cfg.teleop_time_s,
@@ -293,6 +295,8 @@ def record(
 
     if not robot.is_connected:
         robot.connect()
+
+    robot.to_teleoperate_mode()
 
     listener, events = init_keyboard_listener()
 
@@ -378,6 +382,8 @@ def replay(
     if not robot.is_connected:
         robot.connect()
 
+    robot.to_teleoperate_mode()
+
     # log_say("播放视频", cfg.play_sounds, blocking=True)
     for idx in range(dataset.num_frames):
         start_episode_t = time.perf_counter()
@@ -425,7 +431,7 @@ def test_policy(robot: Robot, cfg: TestPolicyConfig):
     if not robot.is_connected:
         robot.connect()
 
-    robot.to_test_mode()
+    robot.to_follower_control_mode()
 
     policy = policy_class.from_pretrained(cfg.pretrained_name_or_path)
     policy.config.n_action_steps = cfg.n_action_steps

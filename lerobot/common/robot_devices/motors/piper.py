@@ -1,12 +1,12 @@
 import contextlib
-import logging
+import enum
 import socket
 import struct
 import time
 import traceback
 from copy import deepcopy
 from threading import Event, RLock, Thread
-from typing import List
+from typing import Any, List
 
 import numpy as np
 
@@ -17,6 +17,8 @@ from lerobot.common.utils.utils import capture_timestamp_utc
 PIPER_CONTROL_TABLE = {
     "Present_Position": "joints",
     "Goal_Position": "joints",
+    "Torque_Enable": "torque",
+    "Torque_Disable": "torque",
 }
 
 
@@ -26,57 +28,77 @@ MODEL_CONTROL_TABLE = {
 
 
 class UDPSocketManager(object):
+    _lock = RLock()
     _instance = None
+    _first_init = False
 
     port = 5010
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
-            cls._instance = super(UDPSocketManager, cls).__new__(cls, *args, **kwargs)
+            with UDPSocketManager._lock:
+                cls._instance = super().__new__(cls, *args, **kwargs)
+
         return cls._instance
 
     def __init__(self):
+        if self._first_init:
+            return
+
         try:
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.sock.bind(("0.0.0.0", self.port))
+            self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self._sock.bind(("0.0.0.0", self.port))
+            self._first_init = True
         except Exception:
             raise
 
     def get(self) -> socket.socket:
-        return self.sock
+        return self._sock
 
     def close(self):
         with contextlib.suppress(Exception):
-            self.sock.close()
+            self._sock.close()
+
+
+class ControlMode(enum.Enum):
+    disable = 0  # 禁止任何操作
+    follower_control = 1  # 从臂控制
+    teleoperate = 2  # 主臂遥操作从臂
 
 
 class ArmUDPController(object):
     local_port = 5010  # 本机服务端口
     remote_host = "192.168.191.60"
 
-    def __init__(self, remote_host: str, remote_port: int):
+    def __init__(self, remote_host: str, remote_port: int, is_leader: bool = True):
         self.remote_host = remote_host
         self.remote_port = remote_port
+        self.is_leader = is_leader
         self.frame_id = 0
 
         self._stop_event = Event()
         self._recv_data = {}
         self._lock = RLock()
 
+        self._mode = ControlMode.disable
+        self._enable = True
+        self._emergency = False
+
+    def switch_mode(self, mode: ControlMode):
+        with self._lock:
+            self._mode = mode
+
     def start(self):
         self.recv_thread = Thread(target=self._recv_loop, daemon=True)
         self.recv_thread.start()
 
-    def write(self, joints: List[float], emergency: bool = False, enable: bool = True, teleoperate_mode: bool = True):
-        if teleoperate_mode:
-            # 遥操作模式下不支持写，直接跳过
-            return
+    def write(self, query_name: str, values: Any):
+        if query_name == "joints":
+            self._write_joints(values)
 
-        if len(joints) != 7:
-            raise ValueError("需要提供7个关节角度")
-
-        emergency_flag = 0x01 if emergency else 0x00
-        enable_flag = 0x01 if enable else 0x00
+    def _write_joints(self, joints: List[float]):
+        emergency_flag = 0x01 if self._emergency else 0x00
+        enable_flag = 0x01 if self._enable else 0x00
 
         data = struct.pack("<BBBB", 0x55, 0x01, emergency_flag, enable_flag)
         for j in joints:
@@ -85,14 +107,13 @@ class ArmUDPController(object):
         padding_len = 64 - len(data) - 5
         data += b"\x00" * padding_len
 
-        mode_flag = 0x00 if teleoperate_mode else 0x01
+        mode_flag = self._mode.value
 
         data += struct.pack("<B", mode_flag)
         data += struct.pack("<HB", 101, self.frame_id % 256)
         data += struct.pack("<B", 0x0A)
 
         addr = (self.remote_host, self.remote_port)
-        logging.info(f"[发送] → {addr} 数据(HEX):", data.hex())
 
         sock = UDPSocketManager().get()
         sock.sendto(data, addr)
@@ -102,8 +123,7 @@ class ArmUDPController(object):
         sock = UDPSocketManager().get()
         while not self._stop_event.is_set():
             try:
-                data, addr = sock.recvfrom(128)
-
+                data, _ = sock.recvfrom(128)
                 if len(data) != 128 or data[0] != 0xAA:
                     continue
 
@@ -120,25 +140,21 @@ class ArmUDPController(object):
                         "version": struct.unpack("<H", data[124:126])[0],
                         "frame_id": data[126],
                     }
-
-                    logging.info(f"[接收] ← {addr} 状态帧 ID:{self._recv_data['frame_id']}")
             except Exception as e:
-                logging.info("接收错误:", e)
+                print("接收错误:", e)
 
     def stop(self):
         self._stop_event.set()
         UDPSocketManager().close()
-        logging.info("[停止] Socket 已关闭。")
+        print("Socket已关闭。")
 
-    def recover(self, teleoperate_mode: bool = False):
-        logging.info("[恢复流程] 发送急停指令...")
-        self.write([0] * 7, emergency=True, enable=False, teleoperate_mode=teleoperate_mode)
-        time.sleep(1)
-        logging.info("[恢复流程] 发送恢复启用指令...")
-        self.write([0] * 7, emergency=False, enable=True, teleoperate_mode=teleoperate_mode)
+    def read(self, query_name: str):
+        if query_name == "joints":
+            return self._read_joints()
 
-    def read(self, data_name: str):
-        return self._recv_data[data_name]
+    def _read_joints(self):
+        prefix = "leader" if self.is_leader else "follower"
+        return self._recv_data.get(f"{prefix}_joints")
 
 
 def get_group_sync_key(data_name, motor_names):
@@ -164,16 +180,20 @@ def get_log_name(var_name, fn_name, data_name, motor_names):
     return log_name
 
 
-class MotorsBus(object):
+class TorqueMode(enum.Enum):
+    ENABLED = 1
+    DISABLED = 0
+
+
+class PiperMotorsBus(object):
     def __init__(
         self,
         config: PiperMotorsBusConfig,
     ):
         self.port = config.port
-        self.host = self.host
+        self.host = config.host
         self.motors = config.motors
         self.is_leader = config.is_leader
-        self.teleoperate_mode = config.teleoperate_mode
 
         self.model_ctrl_table = deepcopy(MODEL_CONTROL_TABLE)
 
@@ -183,7 +203,15 @@ class MotorsBus(object):
         self.logs = {}
         self.track_positions = {}
 
-        self.controller = ArmUDPController(self.host, self.port, teleoperate_mode=self.teleoperate_mode)
+        self.controller = ArmUDPController(self.host, self.port, is_leader=self.is_leader)
+
+    def to_teleoperate_mode(self):
+        """切换为遥操作模式。"""
+        self.controller.switch_mode(ControlMode.teleoperate)
+
+    def to_follower_control_mode(self):
+        """切换为从臂控制模式（模型驱动）。"""
+        self.controller.switch_mode(ControlMode.follower_control)
 
     def connect(self):
         if self.is_connected:
@@ -193,13 +221,17 @@ class MotorsBus(object):
 
         try:
             self.controller.start()
-            data = self.controller.read()
+            query_name = self.data_name_to_query_name("Present_Position")
+            data = self.controller.read(query_name)
             retry_cnt = 10
             cnt = 0
             while not data and cnt < retry_cnt:
                 time.sleep(0.5)
-                data = self.controller.read()
+                data = self.controller.read(query_name)
+                cnt += 1
 
+            if not data:
+                raise OSError(f"Connection failed: ({self.host}, {self.port})")
         except Exception:
             traceback.print_exc()
             raise
@@ -224,6 +256,9 @@ class MotorsBus(object):
     def revert_calibration(self, values: np.ndarray | list, motor_names: list[str] | None):
         pass
 
+    def data_name_to_query_name(self, data_name: str):
+        return self.model_ctrl_table[self.motor_models[0]][data_name]
+
     def read(self, data_name, motor_names: str | list[str] | None = None):
         start_time = time.perf_counter()
 
@@ -242,16 +277,16 @@ class MotorsBus(object):
 
         values = []
 
-        suffix = self.model_ctrl_table[model][data_name]
-        prefix = "leader" if self.is_leader else "follower"
-        data_name = f"{prefix}_{suffix}"
+        query_name = self.data_name_to_query_name(data_name)
+        joints = self.controller.read(query_name)
+        if not joints:
+            raise ConnectionError("Read failed.")
 
-        joints = self.controller.read(data_name)
         for idx in motor_ids:
             value = joints[idx - 1]
             values.append(value)
 
-        values = np.array(values)
+        values = np.array(values, dtype=np.float32)
 
         # log the number of seconds it took to read the data from the motors
         delta_ts_name = get_log_name("delta_timestamp_s", "read", data_name, motor_names)
@@ -285,7 +320,8 @@ class MotorsBus(object):
             models.append(model)
 
         values = values.tolist()
-        self.controller.write(values, teleoperate_mode=self.teleoperate_mode)
+        query_name = self.data_name_to_query_name(data_name)
+        self.controller.write(query_name, values)
 
         # log the number of seconds it took to write the data to the motors
         delta_ts_name = get_log_name("delta_timestamp_s", "write", data_name, motor_names)
@@ -300,6 +336,7 @@ class MotorsBus(object):
         if not self.is_connected:
             return
 
+        self.controller.switch_mode(ControlMode.disable)
         self.controller.stop()
         self.is_connected = False
 
