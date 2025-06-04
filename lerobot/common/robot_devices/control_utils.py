@@ -326,21 +326,6 @@ def control_loop(
             else:
                 observation = robot.capture_observation()
                 action = None
-
-                if policy is not None:
-                    pred_action = predict_action(
-                        observation, policy, get_safe_torch_device(policy.config.device), policy.config.use_amp
-                    )
-                    # Action can eventually be clipped using `max_relative_target`,
-                    # so action actually sent is saved in the dataset.
-                    action = robot.send_action(pred_action)
-                    action = {"action": action}
-
-            if teleoperate:
-                observation, action = robot.teleop_step(record_data=True)
-            else:
-                observation = robot.capture_observation()
-                action = None
                 observation["task"] = [single_task]
                 observation["robot_type"] = [policy.robot_type] if hasattr(policy, "robot_type") else [""]
                 if policy is not None:
