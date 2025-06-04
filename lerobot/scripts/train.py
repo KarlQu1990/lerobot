@@ -20,7 +20,8 @@ import time
 # os.environ["TORCH_LOGS"] = "+dynamo"
 # os.environ["TORCHDYNAMO_VERBOSE"] = "1"
 os.environ["TORCHDYNAMO_DYNAMIC_SHAPES"] = "1"
-# os.environ["ORCHDYNAMO_REPRO_LEVEL"] = "4"
+# os.environ["TORCHDYNAMO_REPRO_LEVEL"] = "4"
+# os.environ["TORCHDYNAMO_DISABLE"] = "1"
 from contextlib import nullcontext
 from pprint import pformat
 from typing import Any

@@ -49,7 +49,9 @@ if platform.system() == "Windows":
                 tables = pd.read_html(COM_OUTPUT_PATH)
                 table = tables[0]
 
-                table = table.loc[~pd.isna(table["Friendly Name"]), :]
+                table = table.loc[(~pd.isna(table["Friendly Name"])), :]
+                if table.shape[0]:
+                    table = table.loc[table["Device Type"] != "Unknown", :]
                 devices = table.set_index("Friendly Name")[["Instance ID", "Drive Letter"]].to_dict(orient="index")
 
                 self._devices = devices
