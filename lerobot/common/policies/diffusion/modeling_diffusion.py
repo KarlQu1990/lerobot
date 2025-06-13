@@ -71,12 +71,8 @@ class DiffusionPolicy(PreTrainedPolicy):
         self.config = config
 
         self.normalize_inputs = Normalize(config.input_features, config.normalization_mapping, dataset_stats)
-        self.normalize_targets = Normalize(
-            config.output_features, config.normalization_mapping, dataset_stats
-        )
-        self.unnormalize_outputs = Unnormalize(
-            config.output_features, config.normalization_mapping, dataset_stats
-        )
+        self.normalize_targets = Normalize(config.output_features, config.normalization_mapping, dataset_stats)
+        self.unnormalize_outputs = Unnormalize(config.output_features, config.normalization_mapping, dataset_stats)
 
         # queues are populated during rollout of the policy, they contain the n latest observations and actions
         self._queues = None
@@ -124,9 +120,7 @@ class DiffusionPolicy(PreTrainedPolicy):
         batch = self.normalize_inputs(batch)
         if self.config.image_features:
             batch = dict(batch)  # shallow copy so that adding a key doesn't modify the original
-            batch["observation.images"] = torch.stack(
-                [batch[key] for key in self.config.image_features], dim=-4
-            )
+            batch["observation.images"] = torch.stack([batch[key] for key in self.config.image_features], dim=-4)
         # Note: It's important that this happens after stacking the images into a single key.
         self._queues = populate_queues(self._queues, batch)
 
@@ -148,13 +142,11 @@ class DiffusionPolicy(PreTrainedPolicy):
         batch = self.normalize_inputs(batch)
         if self.config.image_features:
             batch = dict(batch)  # shallow copy so that adding a key doesn't modify the original
-            batch["observation.images"] = torch.stack(
-                [batch[key] for key in self.config.image_features], dim=-4
-            )
+            batch["observation.images"] = torch.stack([batch[key] for key in self.config.image_features], dim=-4)
         batch = self.normalize_targets(batch)
         loss = self.diffusion.compute_loss(batch)
         # no output_dict so returning None
-        return loss, None
+        return loss, {}
 
 
 def _make_noise_scheduler(name: str, **kwargs: dict) -> DDPMScheduler | DDIMScheduler:
@@ -245,12 +237,9 @@ class DiffusionModel(nn.Module):
             if self.config.use_separate_rgb_encoder_per_camera:
                 # Combine batch and sequence dims while rearranging to make the camera index dimension first.
                 images_per_camera = einops.rearrange(batch["observation.images"], "b s n ... -> n (b s) ...")
-                img_features_list = torch.cat(
-                    [
-                        encoder(images)
-                        for encoder, images in zip(self.rgb_encoder, images_per_camera, strict=True)
-                    ]
-                )
+                img_features_list = torch.cat([
+                    encoder(images) for encoder, images in zip(self.rgb_encoder, images_per_camera, strict=True)
+                ])
                 # Separate batch and sequence dims back out. The camera index dim gets absorbed into the
                 # feature dim (effectively concatenating the camera features).
                 img_features = einops.rearrange(
@@ -263,9 +252,7 @@ class DiffusionModel(nn.Module):
                 )
                 # Separate batch dim and sequence dim back out. The camera index dim gets absorbed into the
                 # feature dim (effectively concatenating the camera features).
-                img_features = einops.rearrange(
-                    img_features, "(b s n) ... -> b s (n ...)", b=batch_size, s=n_obs_steps
-                )
+                img_features = einops.rearrange(img_features, "(b s n) ... -> b s (n ...)", b=batch_size, s=n_obs_steps)
             global_cond_feats.append(img_features)
 
         if self.config.env_state_feature:
@@ -358,8 +345,7 @@ class DiffusionModel(nn.Module):
         if self.config.do_mask_loss_for_padding:
             if "action_is_pad" not in batch:
                 raise ValueError(
-                    "You need to provide 'action_is_pad' in the batch when "
-                    f"{self.config.do_mask_loss_for_padding=}."
+                    f"You need to provide 'action_is_pad' in the batch when {self.config.do_mask_loss_for_padding=}."
                 )
             in_episode_bound = ~batch["action_is_pad"]
             loss = loss * in_episode_bound.unsqueeze(-1)
@@ -459,17 +445,13 @@ class DiffusionRgbEncoder(nn.Module):
             self.do_crop = False
 
         # Set up backbone.
-        backbone_model = getattr(torchvision.models, config.vision_backbone)(
-            weights=config.pretrained_backbone_weights
-        )
+        backbone_model = getattr(torchvision.models, config.vision_backbone)(weights=config.pretrained_backbone_weights)
         # Note: This assumes that the layer4 feature map is children()[-3]
         # TODO(alexander-soare): Use a safer alternative.
         self.backbone = nn.Sequential(*(list(backbone_model.children())[:-2]))
         if config.use_group_norm:
             if config.pretrained_backbone_weights:
-                raise ValueError(
-                    "You can't replace BatchNorm in a pretrained model without ruining the weights!"
-                )
+                raise ValueError("You can't replace BatchNorm in a pretrained model without ruining the weights!")
             self.backbone = _replace_submodules(
                 root_module=self.backbone,
                 predicate=lambda x: isinstance(x, nn.BatchNorm2d),
@@ -619,42 +601,32 @@ class DiffusionConditionalUnet1d(nn.Module):
         for ind, (dim_in, dim_out) in enumerate(in_out):
             is_last = ind >= (len(in_out) - 1)
             self.down_modules.append(
-                nn.ModuleList(
-                    [
-                        DiffusionConditionalResidualBlock1d(dim_in, dim_out, **common_res_block_kwargs),
-                        DiffusionConditionalResidualBlock1d(dim_out, dim_out, **common_res_block_kwargs),
-                        # Downsample as long as it is not the last block.
-                        nn.Conv1d(dim_out, dim_out, 3, 2, 1) if not is_last else nn.Identity(),
-                    ]
-                )
+                nn.ModuleList([
+                    DiffusionConditionalResidualBlock1d(dim_in, dim_out, **common_res_block_kwargs),
+                    DiffusionConditionalResidualBlock1d(dim_out, dim_out, **common_res_block_kwargs),
+                    # Downsample as long as it is not the last block.
+                    nn.Conv1d(dim_out, dim_out, 3, 2, 1) if not is_last else nn.Identity(),
+                ])
             )
 
         # Processing in the middle of the auto-encoder.
-        self.mid_modules = nn.ModuleList(
-            [
-                DiffusionConditionalResidualBlock1d(
-                    config.down_dims[-1], config.down_dims[-1], **common_res_block_kwargs
-                ),
-                DiffusionConditionalResidualBlock1d(
-                    config.down_dims[-1], config.down_dims[-1], **common_res_block_kwargs
-                ),
-            ]
-        )
+        self.mid_modules = nn.ModuleList([
+            DiffusionConditionalResidualBlock1d(config.down_dims[-1], config.down_dims[-1], **common_res_block_kwargs),
+            DiffusionConditionalResidualBlock1d(config.down_dims[-1], config.down_dims[-1], **common_res_block_kwargs),
+        ])
 
         # Unet decoder.
         self.up_modules = nn.ModuleList([])
         for ind, (dim_out, dim_in) in enumerate(reversed(in_out[1:])):
             is_last = ind >= (len(in_out) - 1)
             self.up_modules.append(
-                nn.ModuleList(
-                    [
-                        # dim_in * 2, because it takes the encoder's skip connection as well
-                        DiffusionConditionalResidualBlock1d(dim_in * 2, dim_out, **common_res_block_kwargs),
-                        DiffusionConditionalResidualBlock1d(dim_out, dim_out, **common_res_block_kwargs),
-                        # Upsample as long as it is not the last block.
-                        nn.ConvTranspose1d(dim_out, dim_out, 4, 2, 1) if not is_last else nn.Identity(),
-                    ]
-                )
+                nn.ModuleList([
+                    # dim_in * 2, because it takes the encoder's skip connection as well
+                    DiffusionConditionalResidualBlock1d(dim_in * 2, dim_out, **common_res_block_kwargs),
+                    DiffusionConditionalResidualBlock1d(dim_out, dim_out, **common_res_block_kwargs),
+                    # Upsample as long as it is not the last block.
+                    nn.ConvTranspose1d(dim_out, dim_out, 4, 2, 1) if not is_last else nn.Identity(),
+                ])
             )
 
         self.final_conv = nn.Sequential(
@@ -735,9 +707,7 @@ class DiffusionConditionalResidualBlock1d(nn.Module):
         self.conv2 = DiffusionConv1dBlock(out_channels, out_channels, kernel_size, n_groups=n_groups)
 
         # A final convolution for dimension matching the residual (if needed).
-        self.residual_conv = (
-            nn.Conv1d(in_channels, out_channels, 1) if in_channels != out_channels else nn.Identity()
-        )
+        self.residual_conv = nn.Conv1d(in_channels, out_channels, 1) if in_channels != out_channels else nn.Identity()
 
     def forward(self, x: Tensor, cond: Tensor) -> Tensor:
         """
