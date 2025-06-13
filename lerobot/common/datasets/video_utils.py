@@ -248,7 +248,7 @@ def encode_video_frames(
     imgs_dir: Path | str,
     video_path: Path | str,
     fps: int,
-    vcodec: str = "libsvtav1",
+    vcodec: str = "h264_nvenc",
     pix_fmt: str = "yuv420p",
     g: int | None = 2,
     crf: int | None = 30,
@@ -258,7 +258,7 @@ def encode_video_frames(
 ) -> None:
     """More info on ffmpeg arguments tuning on `benchmark/video/README.md`"""
     # Check encoder availability
-    if vcodec not in ["h264", "hevc", "libsvtav1"]:
+    if vcodec not in ["h264", "h264_nvenc", "hevc", "libsvtav1"]:
         raise ValueError(f"Unsupported video codec: {vcodec}. Supported codecs are: h264, hevc, libsvtav1.")
 
     video_path = Path(video_path)
@@ -306,6 +306,13 @@ def encode_video_frames(
         output_stream.pix_fmt = pix_fmt
         output_stream.width = width
         output_stream.height = height
+
+        # 针对 h264_nvenc，修正 GOP 和 B 帧数
+        if vcodec == "h264_nvenc":
+            # 方案1：gop_size 至少为 5
+            output_stream.codec_context.gop_size = max(g if g is not None else 12, 5)
+            # 方案2：如需小gop，禁用B帧
+            output_stream.codec_context.max_b_frames = 0
 
         # Loop through input frames and encode them
         for input_data in input_list:

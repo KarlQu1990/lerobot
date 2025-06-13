@@ -973,7 +973,9 @@ class LeRobotDataset(torch.utils.data.Dataset):
                 # Skip if video is already encoded. Could be the case when resuming data recording.
                 continue
             img_dir = self._get_image_file_path(episode_index=episode_index, image_key=key, frame_index=0).parent
-            encode_video_frames(img_dir, video_path, self.fps, overwrite=True)
+
+            vcodec = "h264_nvenc" if torch.cuda.is_available() else "libsvtav1"
+            encode_video_frames(img_dir, video_path, self.fps, vcodec=vcodec, overwrite=True)
 
         return video_paths
 
