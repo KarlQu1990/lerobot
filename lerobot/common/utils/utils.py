@@ -15,17 +15,19 @@
 # limitations under the License.
 import logging
 import os
-import sys
 import os.path as osp
 import platform
+import select
 import subprocess
-from copy import copy
+import sys
+import time
+from copy import copy, deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
+from statistics import mean
 
 import numpy as np
 import torch
-from threading import Thread, Event
 
 
 def none_or_int(value):
@@ -109,11 +111,17 @@ def is_amp_available(device: str):
         raise ValueError(f"Unknown device '{device}.")
 
 
-def init_logging():
+def init_logging(log_file: Path | None = None, display_pid: bool = False):
     def custom_format(record):
         dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         fnameline = f"{record.pathname}:{record.lineno}"
-        message = f"{record.levelname} {dt} {fnameline[-15:]:>15} {record.msg}"
+
+        # NOTE: Display PID is useful for multi-process logging.
+        if display_pid:
+            pid_str = f"[PID: {os.getpid()}]"
+            message = f"{record.levelname} {pid_str} {dt} {fnameline[-15:]:>15} {record.msg}"
+        else:
+            message = f"{record.levelname} {dt} {fnameline[-15:]:>15} {record.msg}"
         return message
 
     logging.basicConfig(level=logging.INFO)
@@ -126,6 +134,12 @@ def init_logging():
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
     logging.getLogger().addHandler(console_handler)
+
+    if log_file is not None:
+        # Additionally write logs to file
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setFormatter(formatter)
+        logging.getLogger().addHandler(file_handler)
 
 
 def format_big_number(num, precision=0):
@@ -230,38 +244,129 @@ def is_valid_numpy_dtype_string(dtype_str: str) -> bool:
         return False
 
 
-def run_in_subprocess(script_path: str, args: list[str]) -> None:
-    def read_stream(proc: subprocess.Popen, stream_type: str, stop_event: Event):
-        instream, outstream = (proc.stdout, sys.stdout) if stream_type == "stdout" else (proc.stderr, sys.stderr)
+def enter_pressed() -> bool:
+    if platform.system() == "Windows":
+        import msvcrt
 
-        # for line in instream:
-        #     if not line and proc.poll() is not None:
-        #         break
+        if msvcrt.kbhit():
+            key = msvcrt.getch()
+            return key in (b"\r", b"\n")  # enter key
+        return False
+    else:
+        return select.select([sys.stdin], [], [], 0)[0] and sys.stdin.readline().strip() == ""
 
-        #     print(line.rstrip(), file=outstream)
 
-        while not stop_event.is_set():
-            char = instream.read(1)
-            if not char:
-                break
+def move_cursor_up(lines):
+    """Move the cursor up by a specified number of lines."""
+    print(f"\033[{lines}A", end="")
 
-            print(char, end="", flush=True, file=outstream)
 
-    cmd = [sys.executable, script_path] + args
-    proc = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, bufsize=1, encoding="utf-8"
-    )
+class TimerManager:
+    """
+    Lightweight utility to measure elapsed time.
 
-    stop_event = Event()
+    Examples
+    --------
+    ```python
+    # Example 1: Using context manager
+    timer = TimerManager("Policy", log=False)
+    for _ in range(3):
+        with timer:
+            time.sleep(0.01)
+    print(timer.last, timer.fps_avg, timer.percentile(90))  # Prints: 0.01 100.0 0.01
+    ```
 
-    stdout_thread = Thread(target=read_stream, args=(proc, "stdout", stop_event))
-    stderr_thread = Thread(target=read_stream, args=(proc, "stderr", stop_event))
+    ```python
+    # Example 2: Using start/stop methods
+    timer = TimerManager("Policy", log=False)
+    timer.start()
+    time.sleep(0.01)
+    timer.stop()
+    print(timer.last, timer.fps_avg, timer.percentile(90))  # Prints: 0.01 100.0 0.01
+    ```
+    """
 
-    stdout_thread.start()
-    stderr_thread.start()
+    def __init__(
+        self,
+        label: str = "Elapsed-time",
+        log: bool = True,
+        logger: logging.Logger | None = None,
+    ):
+        self.label = label
+        self.log = log
+        self.logger = logger
+        self._start: float | None = None
+        self._history: list[float] = []
 
-    try:
-        # 等待子进程结束
-        proc.wait()
-    except KeyboardInterrupt:
-        proc.kill()
+    def __enter__(self):
+        return self.start()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stop()
+
+    def start(self):
+        self._start = time.perf_counter()
+        return self
+
+    def stop(self) -> float:
+        if self._start is None:
+            raise RuntimeError("Timer was never started.")
+        elapsed = time.perf_counter() - self._start
+        self._history.append(elapsed)
+        self._start = None
+        if self.log:
+            if self.logger is not None:
+                self.logger.info(f"{self.label}: {elapsed:.6f} s")
+            else:
+                logging.info(f"{self.label}: {elapsed:.6f} s")
+        return elapsed
+
+    def reset(self):
+        self._history.clear()
+
+    @property
+    def last(self) -> float:
+        return self._history[-1] if self._history else 0.0
+
+    @property
+    def avg(self) -> float:
+        return mean(self._history) if self._history else 0.0
+
+    @property
+    def total(self) -> float:
+        return sum(self._history)
+
+    @property
+    def count(self) -> int:
+        return len(self._history)
+
+    @property
+    def history(self) -> list[float]:
+        return deepcopy(self._history)
+
+    @property
+    def fps_history(self) -> list[float]:
+        return [1.0 / t for t in self._history]
+
+    @property
+    def fps_last(self) -> float:
+        return 0.0 if self.last == 0 else 1.0 / self.last
+
+    @property
+    def fps_avg(self) -> float:
+        return 0.0 if self.avg == 0 else 1.0 / self.avg
+
+    def percentile(self, p: float) -> float:
+        """
+        Return the p-th percentile of recorded times.
+        """
+        if not self._history:
+            return 0.0
+        return float(np.percentile(self._history, p))
+
+    def fps_percentile(self, p: float) -> float:
+        """
+        FPS corresponding to the p-th percentile time.
+        """
+        val = self.percentile(p)
+        return 0.0 if val == 0 else 1.0 / val

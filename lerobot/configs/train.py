@@ -168,6 +168,10 @@ class TrainPipelineConfig(HubMixin):
                 raise FileNotFoundError(f"{TRAIN_CONFIG_NAME} not found on the HuggingFace Hub in {model_id}") from e
 
         cli_args = kwargs.pop("cli_args", [])
-        cfg = draccus.parse(cls, config_file, args=cli_args)
+        with draccus.config_type("json"):
+            return draccus.parse(cls, config_file, args=cli_args)
 
-        return cfg
+
+@dataclass(kw_only=True)
+class TrainRLServerPipelineConfig(TrainPipelineConfig):
+    dataset: DatasetConfig | None = None  # NOTE: In RL, we don't need an offline dataset
