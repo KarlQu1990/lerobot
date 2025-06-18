@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, ClassVar
 
 import av
+import cv2
 import pyarrow as pa
 import torch
 import torchvision
@@ -316,8 +317,10 @@ def encode_video_frames(
 
         # Loop through input frames and encode them
         for input_data in input_list:
-            input_image = Image.open(input_data).convert("RGB")
-            input_frame = av.VideoFrame.from_image(input_image)
+            # input_image = Image.open(input_data).convert("RGB")
+            # input_frame = av.VideoFrame.from_image(input_image)
+            input_image = cv2.imread(input_data)
+            input_frame = av.VideoFrame.from_ndarray(input_image, format="bgr24")
             packet = output_stream.encode(input_frame)
             if packet:
                 output.mux(packet)

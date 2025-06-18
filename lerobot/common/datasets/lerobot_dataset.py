@@ -965,7 +965,16 @@ class LeRobotDataset(torch.utils.data.Dataset):
         Note: `encode_video_frames` is a blocking call. Making it asynchronous shouldn't speedup encoding,
         since video encoding with ffmpeg is already using multithreading.
         """
+        from concurrent import futures
+
         video_paths = {}
+        vcodec = "h264_nvenc" if torch.cuda.is_available() else "libsvtav1"
+
+        def encode(args):
+            img_dir, video_path = args
+            encode_video_frames(img_dir, video_path, self.fps, vcodec=vcodec, overwrite=True)
+
+        args = []
         for key in self.meta.video_keys:
             video_path = self.root / self.meta.get_video_file_path(episode_index, key)
             video_paths[key] = str(video_path)
@@ -973,9 +982,11 @@ class LeRobotDataset(torch.utils.data.Dataset):
                 # Skip if video is already encoded. Could be the case when resuming data recording.
                 continue
             img_dir = self._get_image_file_path(episode_index=episode_index, image_key=key, frame_index=0).parent
+            args.append([img_dir, video_path])
 
-            vcodec = "h264_nvenc" if torch.cuda.is_available() else "libsvtav1"
-            encode_video_frames(img_dir, video_path, self.fps, vcodec=vcodec, overwrite=True)
+        with futures.ThreadPoolExecutor(max_workers=4) as excutor:
+            for arg, _ in zip(args, excutor.map(encode, args), strict=False):
+                logging.info(f"save video done: {arg[1]}")
 
         return video_paths
 

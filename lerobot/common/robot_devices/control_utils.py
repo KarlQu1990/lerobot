@@ -316,7 +316,7 @@ def control_loop(
     last_log_t = 0
     # 定期清理rerun缓存
     last_clear_time = time.time()
-    clear_interval = 5
+    clear_interval = 30
     with tqdm.tqdm(total=control_time_s, desc="视频进度") as pbar:
         while timestamp < control_time_s:
             start_loop_t = time.perf_counter()
@@ -354,7 +354,6 @@ def control_loop(
                     for key in image_keys:
                         rr.log(key, rr.Image(observation[key].numpy()), static=True)
                         if diff > clear_interval:
-                            logging.info(f"clear image cache: {key}")
                             rr.log(key, rr.Clear(recursive=True))
 
                     if diff > clear_interval:

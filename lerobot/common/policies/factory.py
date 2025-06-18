@@ -126,9 +126,10 @@ def make_policy(
         raise NotImplementedError(
             "Current implementation of VQBeT does not support `mps` backend. Please use `cpu` or `cuda` backend."
         )
-    
+
     if cfg.type == "pi0":
         import os
+
         os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
     policy_cls = get_policy_class(cfg.type)
@@ -155,6 +156,7 @@ def make_policy(
         # hyperparameters that we want to vary).
         kwargs["pretrained_name_or_path"] = cfg.pretrained_path
         policy = policy_cls.from_pretrained(**kwargs)
+        logging.info(f"fine-tuning from pretrained: {cfg.pretrained_path}")
     else:
         # Make a fresh policy.
         policy = policy_cls(**kwargs)
