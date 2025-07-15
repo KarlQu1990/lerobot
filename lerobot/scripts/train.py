@@ -22,6 +22,7 @@ import time
 os.environ["TORCHDYNAMO_DYNAMIC_SHAPES"] = "1"
 # os.environ["TORCHDYNAMO_REPRO_LEVEL"] = "4"
 # os.environ["TORCHDYNAMO_DISABLE"] = "1"
+import warnings
 from contextlib import nullcontext
 from pprint import pformat
 from typing import Any
@@ -59,6 +60,10 @@ from lerobot.common.utils.wandb_utils import WandBLogger
 from lerobot.configs import parser
 from lerobot.configs.train import TrainPipelineConfig
 from lerobot.scripts.eval import eval_policy
+
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
+
 
 dataloader: torch.utils.data.DataLoader = None
 
