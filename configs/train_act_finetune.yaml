@@ -1,0 +1,13 @@
+
+dataset:
+  repo_id: hhws/so100_bimanual_transfer_5
+  root: D:/projects/lerobot_datasets
+  image_transforms:
+    enable: false
+
+output_dir: D:/projects/lerobot_trained_models/act_so100_bimanual_transfer_10
+job_name: act_so100_bimanual_transfer_10
+batch_size: 8
+steps: 20000
+save_freq: 10000
+

@@ -1,0 +1,19 @@
+robot:
+  type: so100_bimanual
+  # type: piper_left
+control:
+  type: record
+  root: C:/Users/chlai/projects/lerobot_datasets
+  repo_id: hhws/so100_bimanual_cloth_2
+  single_task: 两次对折折叠衣服。
+  fps: 30
+  warmup_time_s: 5
+  episode_time_s: 160  # 视频最大时长
+  reset_time_s: 30
+  num_episodes: 50   # 数据集数量
+  resume: true   # 继续录制
+  display_data: true
+  tags: ["piper","tutorial"]
+  push_to_hub: false
+
+

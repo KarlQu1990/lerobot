@@ -1,0 +1,26 @@
+dataset:
+  repo_id: hhws/so100_bimanual_cloth_2
+  root: C:/Users/chlai/projects/lerobot_datasets
+  image_transforms:
+    enable: false
+  # episodes: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+
+policy:
+  type: act
+  vision_backbone: resnet18
+  pretrained_backbone_weights: ResNet18_Weights.IMAGENET1K_V1
+  chunk_size: 100
+  kl_weight: 50.0
+  optimizer_lr: 1e-5
+  optimizer_lr_backbone: 1e-5
+  optimizer_weight_decay: 1e-4
+  use_amp: true
+
+output_dir: C:/Users/chlai/projects/lerobot_trained_models/act_so100_bimanual_cloth_2
+job_name: act_so100_bimanual_cloth_2
+batch_size: 8
+steps: 150000
+save_freq: 10000
+num_workers: 5
+resume: false
+
