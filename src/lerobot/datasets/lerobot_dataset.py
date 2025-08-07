@@ -959,16 +959,29 @@ class LeRobotDataset(torch.utils.data.Dataset):
         Args:
             episode_index (int): Index of the episode to encode.
         """
+        from concurrent import futures
+
+        video_paths = {}
+        vcodec = "h264_nvenc" if torch.cuda.is_available() else "libsvtav1"
+
+        def encode(args):
+            img_dir, video_path = args
+            encode_video_frames(img_dir, video_path, self.fps, vcodec=vcodec, overwrite=True)
+            shutil.rmtree(img_dir)
+
+        args = []
         for key in self.meta.video_keys:
             video_path = self.root / self.meta.get_video_file_path(episode_index, key)
+            video_paths[key] = str(video_path)
             if video_path.is_file():
                 # Skip if video is already encoded. Could be the case when resuming data recording.
                 continue
             img_dir = self._get_image_file_path(episode_index=episode_index, image_key=key, frame_index=0).parent
+            args.append([img_dir, video_path])
 
-            vcodec = "h264_nvenc" if torch.cuda.is_available() else "libsvtav1"
-            encode_video_frames(img_dir, video_path, self.fps, vcodec=vcodec, overwrite=True)
-            shutil.rmtree(img_dir)
+        with futures.ThreadPoolExecutor(max_workers=4) as excutor:
+            for arg, _ in zip(args, excutor.map(encode, args), strict=False):
+                logging.info(f"save video done: {arg[1]}")
 
         # Update video info (only needed when first episode is encoded since it reads from episode 0)
         if len(self.meta.video_keys) > 0 and episode_index == 0:

@@ -74,9 +74,7 @@ class BiSO100Follower(Robot):
 
     @property
     def _cameras_ft(self) -> dict[str, tuple]:
-        return {
-            cam: (self.config.cameras[cam].height, self.config.cameras[cam].width, 3) for cam in self.cameras
-        }
+        return {cam: (self.config.cameras[cam].height, self.config.cameras[cam].width, 3) for cam in self.cameras}
 
     @cached_property
     def observation_features(self) -> dict[str, type | tuple]:
@@ -138,13 +136,9 @@ class BiSO100Follower(Robot):
 
     def send_action(self, action: dict[str, Any]) -> dict[str, Any]:
         # Remove "left_" prefix
-        left_action = {
-            key.removeprefix("left_"): value for key, value in action.items() if key.startswith("left_")
-        }
+        left_action = {key.removeprefix("left_"): value for key, value in action.items() if key.startswith("left_")}
         # Remove "right_" prefix
-        right_action = {
-            key.removeprefix("right_"): value for key, value in action.items() if key.startswith("right_")
-        }
+        right_action = {key.removeprefix("right_"): value for key, value in action.items() if key.startswith("right_")}
 
         send_action_left = self.left_arm.send_action(left_action)
         send_action_right = self.right_arm.send_action(right_action)

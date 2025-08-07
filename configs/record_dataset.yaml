@@ -1,19 +1,43 @@
 robot:
   type: so100_bimanual
-  # type: piper_left
-control:
-  type: record
+  type: bi_so100_follower
+  id: bimanual_follower
+  left_arm_port: left_follower
+  right_arm_port: right_follower
+  cameras:
+    high:
+      type: opencv
+      index_or_path: high
+      width: 640
+      height: 480
+      fps: 30
+    left_wrist:
+      type: opencv
+      index_or_path: left_wrist
+      width: 640
+      height: 480
+      fps: 30
+    right_wrist:
+      type: opencv
+      index_or_path: right_wrist
+      width: 640
+      height: 480
+      fps: 30
+teleop:
+  type: bi_so100_leader
+  id: bimanual_leader
+  left_arm_port: left_leader
+  right_arm_port: right_leader
+dataset:
   root: C:/Users/chlai/projects/lerobot_datasets
-  repo_id: hhws/so100_bimanual_cloth_2
-  single_task: 两次对折折叠衣服。
+  repo_id: hhws/so100_bimanual_cloth_3
+  single_task: folder clothes.
   fps: 30
-  warmup_time_s: 5
   episode_time_s: 160  # 视频最大时长
   reset_time_s: 30
-  num_episodes: 50   # 数据集数量
-  resume: true   # 继续录制
-  display_data: true
-  tags: ["piper","tutorial"]
+  num_episodes: 1   # 数据集数量
+  tags: ["so100","tutorial"]
   push_to_hub: false
 
-
+display_data: true
+resume: false

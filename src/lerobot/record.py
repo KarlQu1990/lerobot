@@ -63,6 +63,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from pprint import pformat
 
+import tqdm
+
 from lerobot.cameras import (  # noqa: F401
     CameraConfig,  # noqa: F401
 )
@@ -224,64 +226,73 @@ def record_loop(
         policy.reset()
 
     timestamp = 0
+    timestamp_int = 0
     start_episode_t = time.perf_counter()
-    while timestamp < control_time_s:
-        start_loop_t = time.perf_counter()
+    with tqdm.tqdm(total=control_time_s, desc="视频进度") as pbar:
+        while timestamp < control_time_s:
+            start_loop_t = time.perf_counter()
 
-        if events["exit_early"]:
-            events["exit_early"] = False
-            break
+            if events["exit_early"]:
+                events["exit_early"] = False
+                break
 
-        observation = robot.get_observation()
+            observation = robot.get_observation()
 
-        if policy is not None or dataset is not None:
-            observation_frame = build_dataset_frame(dataset.features, observation, prefix="observation")
+            if policy is not None or dataset is not None:
+                observation_frame = build_dataset_frame(dataset.features, observation, prefix="observation")
 
-        if policy is not None:
-            action_values = predict_action(
-                observation_frame,
-                policy,
-                get_safe_torch_device(policy.config.device),
-                policy.config.use_amp,
-                task=single_task,
-                robot_type=robot.robot_type,
-            )
-            action = {key: action_values[i].item() for i, key in enumerate(robot.action_features)}
-        elif policy is None and isinstance(teleop, Teleoperator):
-            action = teleop.get_action()
-        elif policy is None and isinstance(teleop, list):
-            # TODO(pepijn, steven): clean the record loop for use of multiple robots (possibly with pipeline)
-            arm_action = teleop_arm.get_action()
-            arm_action = {f"arm_{k}": v for k, v in arm_action.items()}
+            if policy is not None:
+                action_values = predict_action(
+                    observation_frame,
+                    policy,
+                    get_safe_torch_device(policy.config.device),
+                    policy.config.use_amp,
+                    task=single_task,
+                    robot_type=robot.robot_type,
+                )
+                action = {key: action_values[i].item() for i, key in enumerate(robot.action_features)}
+            elif policy is None and isinstance(teleop, Teleoperator):
+                action = teleop.get_action()
+            elif policy is None and isinstance(teleop, list):
+                # TODO(pepijn, steven): clean the record loop for use of multiple robots (possibly with pipeline)
+                arm_action = teleop_arm.get_action()
+                arm_action = {f"arm_{k}": v for k, v in arm_action.items()}
 
-            keyboard_action = teleop_keyboard.get_action()
-            base_action = robot._from_keyboard_to_base_action(keyboard_action)
+                keyboard_action = teleop_keyboard.get_action()
+                base_action = robot._from_keyboard_to_base_action(keyboard_action)
 
-            action = {**arm_action, **base_action} if len(base_action) > 0 else arm_action
-        else:
-            logging.info(
-                "No policy or teleoperator provided, skipping action generation."
-                "This is likely to happen when resetting the environment without a teleop device."
-                "The robot won't be at its rest position at the start of the next episode."
-            )
-            continue
+                action = {**arm_action, **base_action} if len(base_action) > 0 else arm_action
+            else:
+                logging.info(
+                    "No policy or teleoperator provided, skipping action generation."
+                    "This is likely to happen when resetting the environment without a teleop device."
+                    "The robot won't be at its rest position at the start of the next episode."
+                )
+                continue
 
-        # Action can eventually be clipped using `max_relative_target`,
-        # so action actually sent is saved in the dataset.
-        sent_action = robot.send_action(action)
+            # Action can eventually be clipped using `max_relative_target`,
+            # so action actually sent is saved in the dataset.
+            sent_action = robot.send_action(action)
 
-        if dataset is not None:
-            action_frame = build_dataset_frame(dataset.features, sent_action, prefix="action")
-            frame = {**observation_frame, **action_frame}
-            dataset.add_frame(frame, task=single_task)
+            if dataset is not None:
+                action_frame = build_dataset_frame(dataset.features, sent_action, prefix="action")
+                frame = {**observation_frame, **action_frame}
+                dataset.add_frame(frame, task=single_task)
 
-        if display_data:
-            log_rerun_data(observation, action)
+            if display_data:
+                log_rerun_data(observation, action)
 
-        dt_s = time.perf_counter() - start_loop_t
-        busy_wait(1 / fps - dt_s)
+            dt_s = time.perf_counter() - start_loop_t
+            busy_wait(1 / fps - dt_s)
 
-        timestamp = time.perf_counter() - start_episode_t
+            timestamp = time.perf_counter() - start_episode_t
+
+            if int(timestamp) > timestamp_int:
+                timestamp_int = int(timestamp)
+                pbar.update(1)
+
+        if timestamp_int < control_time_s:
+            pbar.update(1)
 
 
 @parser.wrap()
@@ -338,7 +349,7 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
     with VideoEncodingManager(dataset):
         recorded_episodes = 0
         while recorded_episodes < cfg.dataset.num_episodes and not events["stop_recording"]:
-            log_say(f"Recording episode {dataset.num_episodes}", cfg.play_sounds)
+            log_say(f"录制第{recorded_episodes + 1}个视频。", cfg.play_sounds)
             record_loop(
                 robot=robot,
                 events=events,
@@ -356,7 +367,7 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
             if not events["stop_recording"] and (
                 (recorded_episodes < cfg.dataset.num_episodes - 1) or events["rerecord_episode"]
             ):
-                log_say("Reset the environment", cfg.play_sounds)
+                log_say("重置环境。", cfg.play_sounds)
                 record_loop(
                     robot=robot,
                     events=events,
@@ -368,7 +379,7 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
                 )
 
             if events["rerecord_episode"]:
-                log_say("Re-record episode", cfg.play_sounds)
+                log_say("重新录制视频。", cfg.play_sounds)
                 events["rerecord_episode"] = False
                 events["exit_early"] = False
                 dataset.clear_episode_buffer()
@@ -377,7 +388,7 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
             dataset.save_episode()
             recorded_episodes += 1
 
-    log_say("Stop recording", cfg.play_sounds, blocking=True)
+    log_say("停止录制。", cfg.play_sounds, blocking=True)
 
     robot.disconnect()
     if teleop is not None:
@@ -389,7 +400,7 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
     if cfg.dataset.push_to_hub:
         dataset.push_to_hub(tags=cfg.dataset.tags, private=cfg.dataset.private)
 
-    log_say("Exiting", cfg.play_sounds)
+    log_say("录制已结束。", cfg.play_sounds)
     return dataset
 
 

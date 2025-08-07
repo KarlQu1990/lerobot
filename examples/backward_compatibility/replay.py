@@ -81,7 +81,7 @@ def replay(cfg: ReplayConfig):
     actions = dataset.hf_dataset.select_columns("action")
     robot.connect()
 
-    log_say("Replaying episode", cfg.play_sounds, blocking=True)
+    log_say("回放视频", cfg.play_sounds, blocking=True)
     for idx in range(dataset.num_frames):
         start_episode_t = time.perf_counter()
 

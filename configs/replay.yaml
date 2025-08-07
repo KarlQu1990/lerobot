@@ -1,8 +1,10 @@
 robot:
   type: so100_bimanual
-control:
-  type: replay
-  fps: 30
+  type: bi_so100_follower
+  id: bimanual_follower
+  left_arm_port: left_follower
+  right_arm_port: right_follower
+dataset:
   root: C:/Users/chlai/projects/lerobot_datasets
   repo_id: hhws/so100_bimanual_cloth_2
   episode: 30

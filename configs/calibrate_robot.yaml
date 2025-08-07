@@ -1,0 +1,4 @@
+robot:
+  type: so100_follower
+  id: right_follower
+  port: right_follower

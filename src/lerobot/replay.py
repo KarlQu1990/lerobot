@@ -95,12 +95,13 @@ def replay(cfg: ReplayConfig):
     actions = dataset.hf_dataset.select_columns("action")
     robot.connect()
 
-    log_say("Replaying episode", cfg.play_sounds, blocking=True)
+    log_say("开始回放。", cfg.play_sounds, blocking=True)
     for idx in range(dataset.num_frames):
         start_episode_t = time.perf_counter()
 
         action_array = actions[idx]["action"]
         action = {}
+
         for i, name in enumerate(dataset.features["action"]["names"]):
             action[name] = action_array[i]
 

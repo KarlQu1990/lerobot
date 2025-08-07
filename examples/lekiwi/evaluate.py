@@ -45,7 +45,7 @@ if not robot.is_connected:
 
 recorded_episodes = 0
 while recorded_episodes < NUM_EPISODES and not events["stop_recording"]:
-    log_say(f"Running inference, recording eval episode {recorded_episodes} of {NUM_EPISODES}")
+    log_say(f"推理中，录制第{recorded_episodes + 1}个验证视频。")
 
     # Run the policy inference loop
     record_loop(
@@ -60,10 +60,8 @@ while recorded_episodes < NUM_EPISODES and not events["stop_recording"]:
     )
 
     # Logic for reset env
-    if not events["stop_recording"] and (
-        (recorded_episodes < NUM_EPISODES - 1) or events["rerecord_episode"]
-    ):
-        log_say("Reset the environment")
+    if not events["stop_recording"] and ((recorded_episodes < NUM_EPISODES - 1) or events["rerecord_episode"]):
+        log_say("重置环境。")
         record_loop(
             robot=robot,
             events=events,
@@ -74,7 +72,7 @@ while recorded_episodes < NUM_EPISODES and not events["stop_recording"]:
         )
 
     if events["rerecord_episode"]:
-        log_say("Re-record episode")
+        log_say("重新录制视频。")
         events["rerecord_episode"] = False
         events["exit_early"] = False
         dataset.clear_episode_buffer()

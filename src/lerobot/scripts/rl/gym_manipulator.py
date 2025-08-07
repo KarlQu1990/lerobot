@@ -74,9 +74,7 @@ logging.basicConfig(level=logging.INFO)
 
 def reset_follower_position(robot_arm, target_position):
     current_position_dict = robot_arm.bus.sync_read("Present_Position")
-    current_position = np.array(
-        [current_position_dict[name] for name in current_position_dict], dtype=np.float32
-    )
+    current_position = np.array([current_position_dict[name] for name in current_position_dict], dtype=np.float32)
     trajectory = torch.from_numpy(
         np.linspace(current_position, target_position, 50)
     )  # NOTE: 30 is just an arbitrary number
@@ -518,12 +516,10 @@ class AddCurrentToObservation(gym.ObservationWrapper):
             The modified observation with current values.
         """
         present_current_dict = self.env.unwrapped.robot.bus.sync_read("Present_Current")
-        present_current_observation = np.array(
-            [present_current_dict[name] for name in self.env.unwrapped.robot.bus.motors]
-        )
-        observation["agent_pos"] = np.concatenate(
-            [observation["agent_pos"], present_current_observation], axis=-1
-        )
+        present_current_observation = np.array([
+            present_current_dict[name] for name in self.env.unwrapped.robot.bus.motors
+        ])
+        observation["agent_pos"] = np.concatenate([observation["agent_pos"], present_current_observation], axis=-1)
         return observation
 
 
@@ -794,8 +790,7 @@ class ConvertToLeRobotObservation(gym.ObservationWrapper):
         """
         observation = preprocess_observation(observation)
         observation = {
-            key: observation[key].to(self.device, non_blocking=self.device.type == "cuda")
-            for key in observation
+            key: observation[key].to(self.device, non_blocking=self.device.type == "cuda") for key in observation
         }
         return observation
 
@@ -843,18 +838,18 @@ class ResetWrapper(gym.Wrapper):
         """
         start_time = time.perf_counter()
         if self.reset_pose is not None:
-            log_say("Reset the environment.", play_sounds=True)
+            log_say("正在重置环境.", play_sounds=True)
             reset_follower_position(self.unwrapped.robot, self.reset_pose)
-            log_say("Reset the environment done.", play_sounds=True)
+            log_say("重置环境完成。", play_sounds=True)
 
             if hasattr(self.env, "robot_leader"):
                 self.env.robot_leader.bus.sync_write("Torque_Enable", 1)
-                log_say("Reset the leader robot.", play_sounds=True)
+                log_say("正在重置遥主臂.", play_sounds=True)
                 reset_follower_position(self.env.robot_leader, self.reset_pose)
-                log_say("Reset the leader robot done.", play_sounds=True)
+                log_say("重置遥主臂完成。", play_sounds=True)
         else:
             log_say(
-                f"Manually reset the environment for {self.reset_time_s} seconds.",
+                f"手动重置环境{self.reset_time_s}秒。",
                 play_sounds=True,
             )
             start_time = time.perf_counter()
@@ -862,7 +857,7 @@ class ResetWrapper(gym.Wrapper):
                 action = self.env.robot_leader.get_action()
                 self.unwrapped.robot.send_action(action)
 
-            log_say("Manual reset of the environment done.", play_sounds=True)
+            log_say("手动重置环境完成。", play_sounds=True)
 
         busy_wait(self.reset_time_s - (time.perf_counter() - start_time))
 
@@ -1033,16 +1028,12 @@ class GripperActionWrapper(gym.ActionWrapper):
 
         if self.quantization_threshold is not None:
             # Quantize gripper command to -1, 0 or 1
-            gripper_command = (
-                np.sign(gripper_command) if abs(gripper_command) > self.quantization_threshold else 0.0
-            )
+            gripper_command = np.sign(gripper_command) if abs(gripper_command) > self.quantization_threshold else 0.0
         gripper_command = gripper_command * self.unwrapped.robot.config.max_gripper_pos
 
         gripper_state = self.unwrapped.robot.bus.sync_read("Present_Position")["gripper"]
 
-        gripper_action_value = np.clip(
-            gripper_state + gripper_command, 0, self.unwrapped.robot.config.max_gripper_pos
-        )
+        gripper_action_value = np.clip(gripper_state + gripper_command, 0, self.unwrapped.robot.config.max_gripper_pos)
         action[-1] = gripper_action_value.item()
         return action
 
@@ -1270,9 +1261,7 @@ class BaseLeaderControlWrapper(gym.Wrapper):
 
         if self.use_gripper:
             if self.prev_leader_gripper is None:
-                self.prev_leader_gripper = np.clip(
-                    leader_pos[-1], 0, self.robot_follower.config.max_gripper_pos
-                )
+                self.prev_leader_gripper = np.clip(leader_pos[-1], 0, self.robot_follower.config.max_gripper_pos)
 
             # Get gripper action delta based on leader pose
             leader_gripper = leader_pos[-1]
@@ -1299,9 +1288,7 @@ class BaseLeaderControlWrapper(gym.Wrapper):
         """
 
         prev_leader_pos_dict = self.robot_leader.bus.sync_read("Present_Position")
-        prev_leader_pos = np.array(
-            [prev_leader_pos_dict[name] for name in prev_leader_pos_dict], dtype=np.float32
-        )
+        prev_leader_pos = np.array([prev_leader_pos_dict[name] for name in prev_leader_pos_dict], dtype=np.float32)
 
         if not self.leader_torque_enabled:
             self.robot_leader.bus.sync_write("Torque_Enable", 1)
@@ -1565,9 +1552,7 @@ class GamepadControlWrapper(gym.Wrapper):
         self.use_gripper = use_gripper
 
         logging.info("Gamepad control wrapper initialized with provided teleop_device.")
-        print(
-            "Gamepad controls (managed by the provided teleop_device - specific button mappings might vary):"
-        )
+        print("Gamepad controls (managed by the provided teleop_device - specific button mappings might vary):")
         print("  Left analog stick: Move in X-Y plane")
         print("  Right analog stick: Move in Z axis (up/down)")
         print("  X/Square button: End episode (FAILURE)")
@@ -1868,9 +1853,7 @@ def make_robot_env(cfg: EnvConfig) -> gym.Env:
         return env
 
     if not hasattr(cfg, "robot") or not hasattr(cfg, "teleop"):
-        raise ValueError(
-            "Configuration for 'gym_manipulator' must be HILSerlRobotEnvConfig with robot and teleop."
-        )
+        raise ValueError("Configuration for 'gym_manipulator' must be HILSerlRobotEnvConfig with robot and teleop.")
 
     if cfg.robot is None:
         raise ValueError("RobotConfig (cfg.robot) must be provided for gym_manipulator environment.")

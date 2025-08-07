@@ -300,9 +300,7 @@ class MotorsBus(abc.ABC):
             return False
 
         first_table = self.model_ctrl_table[self.models[0]]
-        return any(
-            DeepDiff(first_table, get_ctrl_table(self.model_ctrl_table, model)) for model in self.models[1:]
-        )
+        return any(DeepDiff(first_table, get_ctrl_table(self.model_ctrl_table, model)) for model in self.models[1:])
 
     @cached_property
     def models(self) -> list[str]:
@@ -390,9 +388,7 @@ class MotorsBus(abc.ABC):
 
             if missing_ids:
                 error_lines.append("\nMissing motor IDs:")
-                error_lines.extend(
-                    f"  - {id_} (expected model: {expected_models[id_]})" for id_ in missing_ids
-                )
+                error_lines.extend(f"  - {id_} (expected model: {expected_models[id_]})" for id_ in missing_ids)
 
             if wrong_models:
                 error_lines.append("\nMotors with incorrect model numbers:")
@@ -499,9 +495,7 @@ class MotorsBus(abc.ABC):
         bus.port_handler.closePort()
         return baudrate_ids
 
-    def setup_motor(
-        self, motor: str, initial_baudrate: int | None = None, initial_id: int | None = None
-    ) -> None:
+    def setup_motor(self, motor: str, initial_baudrate: int | None = None, initial_id: int | None = None) -> None:
         """Assign the correct ID and baud-rate to a single motor.
 
         This helper temporarily switches to the motor's current settings, disables torque, sets the desired
@@ -987,9 +981,7 @@ class MotorsBus(abc.ABC):
 
         return value, comm, error
 
-    def write(
-        self, data_name: str, motor: str, value: Value, *, normalize: bool = True, num_retry: int = 0
-    ) -> None:
+    def write(self, data_name: str, motor: str, value: Value, *, normalize: bool = True, num_retry: int = 0) -> None:
         """Write a value to a single motor's register.
 
         Contrary to :pymeth:`sync_write`, this expects a response status packet emitted by the motor, which
@@ -1087,9 +1079,7 @@ class MotorsBus(abc.ABC):
         addr, length = get_address(self.model_ctrl_table, model, data_name)
 
         err_msg = f"Failed to sync read '{data_name}' on {ids=} after {num_retry + 1} tries."
-        ids_values, _ = self._sync_read(
-            addr, length, ids, num_retry=num_retry, raise_on_error=True, err_msg=err_msg
-        )
+        ids_values, _ = self._sync_read(addr, length, ids, num_retry=num_retry, raise_on_error=True, err_msg=err_msg)
 
         ids_values = self._decode_sign(data_name, ids_values)
 
