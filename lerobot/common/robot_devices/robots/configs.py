@@ -542,7 +542,7 @@ class So100RobotConfig(ManipulatorRobotConfig):
     leader_arms: dict[str, MotorsBusConfig] = field(
         default_factory=lambda: {
             "main": FeetechMotorsBusConfig(
-                port="/dev/tty.usbmodem58760431091",
+                port="left_leader",
                 motors={
                     # name: (index, model)
                     "shoulder_pan": [1, "sts3215"],
@@ -559,7 +559,7 @@ class So100RobotConfig(ManipulatorRobotConfig):
     follower_arms: dict[str, MotorsBusConfig] = field(
         default_factory=lambda: {
             "main": FeetechMotorsBusConfig(
-                port="/dev/tty.usbmodem585A0076891",
+                port="left_follower",
                 motors={
                     # name: (index, model)
                     "shoulder_pan": [1, "sts3215"],
@@ -575,14 +575,20 @@ class So100RobotConfig(ManipulatorRobotConfig):
 
     cameras: dict[str, CameraConfig] = field(
         default_factory=lambda: {
-            "laptop": OpenCVCameraConfig(
-                camera_index=0,
+            "high": OpenCVCameraConfig(
+                camera_index="high",
                 fps=30,
                 width=640,
                 height=480,
             ),
-            "phone": OpenCVCameraConfig(
-                camera_index=1,
+            # "low": OpenCVCameraConfig(
+            #     camera_index="low",
+            #     fps=30,
+            #     width=640,
+            #     height=480,
+            # ),
+            "left_wrist": OpenCVCameraConfig(
+                camera_index="left_wrist",
                 fps=30,
                 width=640,
                 height=480,
