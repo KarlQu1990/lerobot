@@ -37,7 +37,7 @@ class SAM01Follower(Robot):
                 "wrist_roll": Motor(6, "sts3215", norm_mode_body),
                 "gripper": Motor(7, "sts3215", norm_mode_body),
             },
-            calibration=self.calibrate,
+            calibration=self.calibration,
         )
         self.cameras = make_cameras_from_configs(config.cameras)
 
@@ -70,7 +70,6 @@ class SAM01Follower(Robot):
             raise DeviceAlreadyConnectedError(f"{self} already connected")
 
         self.bus.connect()
-        print("############", self.is_calibrated)
         if not self.is_calibrated and calibrate:
             logger.info(
                 "Mismatch between calibration values in the motor and the calibration file or no calibration file found"

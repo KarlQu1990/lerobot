@@ -122,9 +122,7 @@ class SO100FollowerEndEffector(SO100Follower):
                     action["gripper"] = [1.0]
                 action = np.append(delta_ee, action["gripper"])
             else:
-                logger.warning(
-                    f"Expected action keys 'delta_x', 'delta_y', 'delta_z', got {list(action.keys())}"
-                )
+                logger.warning(f"Expected action keys 'delta_x', 'delta_y', 'delta_z', got {list(action.keys())}")
                 action = np.zeros(4, dtype=np.float32)
 
         if self.current_joint_pos is None:
@@ -150,14 +148,10 @@ class SO100FollowerEndEffector(SO100Follower):
             )
 
         # Compute inverse kinematics to get joint positions
-        target_joint_values_in_degrees = self.kinematics.inverse_kinematics(
-            self.current_joint_pos, desired_ee_pos
-        )
+        target_joint_values_in_degrees = self.kinematics.inverse_kinematics(self.current_joint_pos, desired_ee_pos)
 
         # Create joint space action dictionary
-        joint_action = {
-            f"{key}.pos": target_joint_values_in_degrees[i] for i, key in enumerate(self.bus.motors.keys())
-        }
+        joint_action = {f"{key}.pos": target_joint_values_in_degrees[i] for i, key in enumerate(self.bus.motors.keys())}
 
         # Handle gripper separately if included in action
         # Gripper delta action is in the range 0 - 2,

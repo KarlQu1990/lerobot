@@ -3,12 +3,12 @@ from lerobot.robots.sam01_follower import SAM01Follower, SAM01FollowerConfig
 
 robot_config = SAM01FollowerConfig(
     port="left_follower",
-    id="left_robot_arm",
+    id="left_robot_arm_follower",
 )
 
 teleop_config = SAM01LeaderConfig(
-    port="left_follower",
-    id="left_robot_arm",
+    port="left_leader",
+    id="left_robot_arm_leader",
 )
 
 robot = SAM01Follower(robot_config)

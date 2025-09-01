@@ -1,21 +1,12 @@
-# Copyright 2025 The HuggingFace Inc. team. All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+from pathlib import Path
 
 import numpy as np
+from roboticstoolbox.robot import Robot
+
+ASSET_ROOT = Path(__file__).parents[3] / "assets"
 
 
-class RobotKinematics:
+class RobotKinematics(Robot):
     """Robot kinematics using placo library for forward and inverse kinematics."""
 
     def __init__(
@@ -24,33 +15,27 @@ class RobotKinematics:
         target_frame_name: str = "gripper_frame_link",
         joint_names: list[str] = None,
     ):
-        """
-        Initialize placo-based kinematics solver.
+        links, name, urdf_string, urdf_filepath = self.URDF_read(urdf_path)
 
-        Args:
-            urdf_path: Path to the robot URDF file
-            target_frame_name: Name of the end-effector frame in the URDF
-            joint_names: List of joint names to use for the kinematics solver
-        """
-        try:
-            import placo
-        except ImportError as e:
-            raise ImportError(
-                "placo is required for RobotKinematics. "
-                "Please install the optional dependencies of `kinematics` in the package."
-            ) from e
+        frame_id = -1
+        for i, link in enumerate(links):
+            if link.name == target_frame_name:
+                frame_id = i
+        if not frame_id:
+            raise ValueError("target link {} not in list: {}", target_frame_name, [link.name for link in links])
 
-        self.robot = placo.RobotWrapper(urdf_path)
-        self.solver = placo.KinematicsSolver(self.robot)
-        self.solver.mask_fbase(True)  # Fix the base
-
-        self.target_frame_name = target_frame_name
-
-        # Set joint names
-        self.joint_names = list(self.robot.joint_names()) if joint_names is None else joint_names
-
-        # Initialize frame task for IK
-        self.tip_frame = self.solver.add_frame_task(self.target_frame_name, np.eye(4))
+        super().__init__(
+            links[:-1],
+            name=name.upper(),
+            manufacturer="SAM",
+            gripper_links=None,
+            urdf_string=urdf_string,
+            urdf_filepath=urdf_filepath,
+        )
+        self.ilimit = 50
+        self.slimit = 100
+        self.tol = 1e-5
+        self.qlim = [[-3.14, -1.57, -1.57, -1.57, -1.57, -3.14], [3.14, 1.57, 1.57, 1.57, 1.57, 3.14]]
 
     def forward_kinematics(self, joint_pos_deg):
         """
@@ -62,67 +47,41 @@ class RobotKinematics:
         Returns:
             4x4 transformation matrix of the end-effector pose
         """
+        current_joint_rad = np.deg2rad(joint_pos_deg[:-1])
+        mat = self.fkine(current_joint_rad)
+        x, y, z = mat.t
+        rotation_mat = mat.R  # 3x3 matrix
+        trans_mat = np.eye(4)
+        trans_mat[:3, :3] = rotation_mat
+        trans_mat[:3, 3] = [x, y, z]
 
-        # Convert degrees to radians
-        joint_pos_rad = np.deg2rad(joint_pos_deg[: len(self.joint_names)])
+        return trans_mat
 
-        # Update joint positions in placo robot
-        for i, joint_name in enumerate(self.joint_names):
-            self.robot.set_joint(joint_name, joint_pos_rad[i])
-
-        # Update kinematics
-        self.robot.update_kinematics()
-
-        # Get the transformation matrix
-        return self.robot.get_T_world_frame(self.target_frame_name)
-
-    def inverse_kinematics(
-        self, current_joint_pos, desired_ee_pose, position_weight=1.0, orientation_weight=0.01
-    ):
+    def inverse_kinematics(self, current_joint_pos, desired_ee_pose):
         """
         Compute inverse kinematics using placo solver.
 
         Args:
             current_joint_pos: Current joint positions in degrees (used as initial guess)
             desired_ee_pose: Target end-effector pose as a 4x4 transformation matrix
-            position_weight: Weight for position constraint in IK
-            orientation_weight: Weight for orientation constraint in IK, set to 0.0 to only constrain position
 
         Returns:
             Joint positions in degrees that achieve the desired end-effector pose
         """
+        current_joint_rad = np.deg2rad(current_joint_pos[:-1])
 
-        # Convert current joint positions to radians for initial guess
-        current_joint_rad = np.deg2rad(current_joint_pos[: len(self.joint_names)])
+        sol = self.ikine_LM(
+            Tep=desired_ee_pose,
+            q0=current_joint_rad,
+            ilimit=self.ilimit,
+            slimit=self.slimit,
+            tol=self.tol,
+        )
 
-        # Set current joint positions as initial guess
-        for i, joint_name in enumerate(self.joint_names):
-            self.robot.set_joint(joint_name, current_joint_rad[i])
-
-        # Update the target pose for the frame task
-        self.tip_frame.T_world_frame = desired_ee_pose
-
-        # Configure the task based on position_only flag
-        self.tip_frame.configure(self.target_frame_name, "soft", position_weight, orientation_weight)
-
-        # Solve IK
-        self.solver.solve(True)
-        self.robot.update_kinematics()
-
-        # Extract joint positions
-        joint_pos_rad = []
-        for joint_name in self.joint_names:
-            joint = self.robot.get_joint(joint_name)
-            joint_pos_rad.append(joint)
-
-        # Convert back to degrees
-        joint_pos_deg = np.rad2deg(joint_pos_rad)
-
-        # Preserve gripper position if present in current_joint_pos
-        if len(current_joint_pos) > len(self.joint_names):
-            result = np.zeros_like(current_joint_pos)
-            result[: len(self.joint_names)] = joint_pos_deg
-            result[len(self.joint_names) :] = current_joint_pos[len(self.joint_names) :]
-            return result
+        if sol.success:
+            joint_pos_rad = sol.q
+            joint_pos_deg = np.rad2deg(joint_pos_rad)
+            return np.append(joint_pos_deg, current_joint_pos[-1])
         else:
-            return joint_pos_deg
+            print("IK fails")
+            return current_joint_pos

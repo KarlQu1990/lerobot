@@ -749,6 +749,7 @@ class ImageCropResizeWrapper(gym.Wrapper):
         obs, info = self.env.reset(seed=seed, options=options)
         for k in self.crop_params_dict:
             device = obs[k].device
+            print("#############", device)
             if device == torch.device("mps:0"):
                 obs[k] = obs[k].cpu()
             obs[k] = F.crop(obs[k], *self.crop_params_dict[k])
@@ -1787,6 +1788,7 @@ class GymHilDeviceWrapper(gym.Wrapper):
     def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None):
         obs, info = self.env.reset(seed=seed, options=options)
         for k in obs:
+            print("############ device:", self.device)
             obs[k] = obs[k].to(self.device)
         if "action_intervention" in info:
             # NOTE: This is a hack to ensure the action intervention is a float32 tensor and supported on MPS device

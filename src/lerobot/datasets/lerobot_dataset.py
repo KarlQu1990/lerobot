@@ -852,6 +852,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
 
         self._wait_image_writer()
         self._save_episode_table(episode_buffer, episode_index)
+
         ep_stats = compute_episode_stats(episode_buffer, self.features)
 
         has_video_keys = len(self.meta.video_keys) > 0

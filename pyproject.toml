@@ -68,12 +68,6 @@ dependencies = [
     "einops>=0.8.0",
     "opencv-python-headless>=4.9.0",
     "av>=14.2.0",
-<<<<<<< HEAD
-    "torch>=2.2.1",
-    "torchcodec==0.2.1; sys_platform != 'win32' and (sys_platform != 'linux' or (platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'armv7l')) and (sys_platform != 'darwin' or platform_machine != 'x86_64')",
-    "torchvision>=0.21.0",
-=======
->>>>>>> main-origin
     "jsonlines>=4.0.0",
     "packaging>=24.2",
     "pynput>=1.7.7",
@@ -107,7 +101,7 @@ draccus = { git = "https://github.com/dlwh/draccus.git", rev = "e48252662a78a847
 
 # Common
 pygame-dep = ["pygame>=2.5.1"]
-placo-dep = ["placo>=0.9.6"]
+#placo-dep = ["placo>=0.9.6"]
 transformers-dep = ["transformers>=4.50.3,<4.52.0"] # TODO: Bumb dependency
 grpcio-dep = ["grpcio==1.73.1", "protobuf==6.31.0"]
 
@@ -133,7 +127,7 @@ intelrealsense = [
 # Policies
 pi0 = ["lerobot[transformers-dep]"]
 smolvla = ["lerobot[transformers-dep]", "num2words>=0.5.14", "accelerate>=1.7.0", "safetensors>=0.4.3"]
-hilserl = ["lerobot[transformers-dep]", "gym-hil>=0.1.9", "lerobot[grpcio-dep]", "lerobot[placo-dep]"]
+hilserl = ["lerobot[transformers-dep]", "gym-hil>=0.1.9", "lerobot[grpcio-dep]"]
 
 # Features
 async = ["lerobot[grpcio-dep]", "matplotlib>=3.10.3"]

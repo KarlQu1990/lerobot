@@ -1,5 +1,5 @@
 dataset:
-  repo_id: hhws/so100_bimanual_cloth_2
+  repo_id: hhws/cai_duo_double
   root: C:/Users/chlai/projects/lerobot_datasets
   image_transforms:
     enable: false
@@ -15,12 +15,13 @@ policy:
   optimizer_lr_backbone: 1e-5
   optimizer_weight_decay: 1e-4
   use_amp: true
+  push_to_hub: false
 
-output_dir: C:/Users/chlai/projects/lerobot_trained_models/act_so100_bimanual_cloth_2
-job_name: act_so100_bimanual_cloth_2
+output_dir: C:/Users/chlai/projects/lerobot_trained_models/act_sam01_cai_duo_double
+job_name: act_sam01
 batch_size: 8
-steps: 150000
+steps: 100000
 save_freq: 10000
-num_workers: 5
+num_workers: 6
 resume: false
 
