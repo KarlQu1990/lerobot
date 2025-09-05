@@ -1,4 +1,0 @@
-teleop:
-  type: so100_leader
-  id: right_leader
-  port: right_leader
