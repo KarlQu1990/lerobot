@@ -17,10 +17,6 @@ logger = logging.getLogger(__name__)
 
 
 class SAM01Leader(Teleoperator):
-    """
-    [SO-100 Leader Arm](https://github.com/TheRobotStudio/SO-ARM100) designed by TheRobotStudio
-    """
-
     config_class = SAM01LeaderConfig
     name = "sam01_leader"
 

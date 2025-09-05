@@ -1,4 +1,5 @@
 import logging
+import sys
 import time
 from dataclasses import asdict, dataclass
 from pprint import pformat
@@ -58,7 +59,7 @@ def test(cfg: TestPolicyConfig):
     if cfg.policy.type == "act":
         policy.config.n_action_steps = cfg.policy.n_action_steps
 
-    device = cfg.policy.device
+    device = device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     policy.reset()
     policy.to(device)
 
@@ -106,10 +107,19 @@ def test(cfg: TestPolicyConfig):
         if timestamp_int < control_time_s:
             pbar.update(control_time_s - timestamp_int)
 
+    robot.disconnect()
+
 
 def main():
     test()
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("##############################")
+        import rerun as rr
+
+        rr.rerun_shutdown()
+        sys.exit(0)

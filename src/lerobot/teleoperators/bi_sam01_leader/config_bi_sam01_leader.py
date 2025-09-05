@@ -10,4 +10,3 @@ from ..config import TeleoperatorConfig
 class BiSAM01LeaderConfig(TeleoperatorConfig):
     left_arm_port: str
     right_arm_port: str
-

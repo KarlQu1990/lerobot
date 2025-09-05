@@ -13,11 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 class BiSAM01Leader(Teleoperator):
-    """
-    [Bimanual SO-100 Leader Arms](https://github.com/TheRobotStudio/SO-ARM100) designed by TheRobotStudio
-    This bimanual leader arm can also be easily adapted to use SO-101 leader arms, just replace the SAM01Leader class with SO101Leader and SAM01LeaderConfig with SO101LeaderConfig.
-    """
-
     config_class = BiSAM01LeaderConfig
     name = "bi_sam01_leader"
 
@@ -89,9 +84,7 @@ class BiSAM01Leader(Teleoperator):
 
     def send_feedback(self, feedback: dict[str, float]) -> None:
         # Remove "left_" prefix
-        left_feedback = {
-            key.removeprefix("left_"): value for key, value in feedback.items() if key.startswith("left_")
-        }
+        left_feedback = {key.removeprefix("left_"): value for key, value in feedback.items() if key.startswith("left_")}
         # Remove "right_" prefix
         right_feedback = {
             key.removeprefix("right_"): value for key, value in feedback.items() if key.startswith("right_")
