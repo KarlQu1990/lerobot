@@ -16,6 +16,7 @@
 import logging
 import os
 import time
+import warnings
 
 # os.environ["TORCH_LOGS"] = "+dynamo"
 # os.environ["TORCHDYNAMO_VERBOSE"] = "1"
@@ -65,6 +66,9 @@ dataloader: torch.utils.data.DataLoader = None
 torch._dynamo.config.suppress_errors = True
 torch._dynamo.config.reorderable_logging_functions.add(print)
 torch._inductor.config.fallback_random = True
+
+
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
 def terminate_handler(signum, frame):

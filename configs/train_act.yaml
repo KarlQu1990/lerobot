@@ -1,5 +1,5 @@
 dataset:
-  repo_id: hhws/cai_duo_double
+  repo_id: hhws/fenjian
   root: C:/Users/chlai/projects/lerobot_datasets
   image_transforms:
     enable: false
@@ -9,6 +9,7 @@ policy:
   type: act
   vision_backbone: resnet18
   pretrained_backbone_weights: ResNet18_Weights.IMAGENET1K_V1
+  backbone_per_camera: true
   chunk_size: 100
   kl_weight: 50.0
   optimizer_lr: 1e-5
@@ -17,7 +18,7 @@ policy:
   use_amp: true
   push_to_hub: false
 
-output_dir: C:/Users/chlai/projects/lerobot_trained_models/act_sam01_cai_duo_double
+output_dir: C:/Users/chlai/projects/lerobot_trained_models/act_sam01_fenjian_load
 job_name: act_sam01
 batch_size: 8
 steps: 100000

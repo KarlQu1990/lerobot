@@ -18,6 +18,7 @@ import queue
 import threading
 from pathlib import Path
 
+import cv2
 import numpy as np
 import PIL.Image
 import torch
@@ -48,9 +49,7 @@ def image_array_to_pil_image(image_array: np.ndarray, range_check: bool = True) 
         image_array = image_array.transpose(1, 2, 0)
 
     elif image_array.shape[-1] != 3:
-        raise NotImplementedError(
-            f"The image has {image_array.shape[-1]} channels, but 3 is required for now."
-        )
+        raise NotImplementedError(f"The image has {image_array.shape[-1]} channels, but 3 is required for now.")
 
     if image_array.dtype != np.uint8:
         if range_check:
@@ -68,6 +67,35 @@ def image_array_to_pil_image(image_array: np.ndarray, range_check: bool = True) 
     return PIL.Image.fromarray(image_array)
 
 
+def image_array_to_cv_image(image_array: np.ndarray, range_check: bool = True) -> PIL.Image.Image:
+    # TODO(aliberts): handle 1 channel and 4 for depth images
+    if image_array.ndim != 3:
+        raise ValueError(f"The array has {image_array.ndim} dimensions, but 3 is expected for an image.")
+
+    if image_array.shape[0] == 3:
+        # Transpose from pytorch convention (C, H, W) to (H, W, C)
+        image_array = image_array.transpose(1, 2, 0)
+
+    elif image_array.shape[-1] != 3:
+        raise NotImplementedError(f"The image has {image_array.shape[-1]} channels, but 3 is required for now.")
+
+    if image_array.dtype != np.uint8:
+        if range_check:
+            max_ = image_array.max().item()
+            min_ = image_array.min().item()
+            if max_ > 1.0 or min_ < 0.0:
+                raise ValueError(
+                    "The image data type is float, which requires values in the range [0.0, 1.0]. "
+                    f"However, the provided range is [{min_}, {max_}]. Please adjust the range or "
+                    "provide a uint8 image with values in the range [0, 255]."
+                )
+
+        image_array = (image_array * 255).astype(np.uint8)
+        image_array = cv2.cvtColor(image_array, cv2.COLOR_RGB2BGR)
+
+    return image_array
+
+
 def write_image(image: np.ndarray | PIL.Image.Image, fpath: Path):
     try:
         if isinstance(image, np.ndarray):
@@ -77,6 +105,7 @@ def write_image(image: np.ndarray | PIL.Image.Image, fpath: Path):
         else:
             raise TypeError(f"Unsupported image type: {type(image)}")
         img.save(fpath)
+
     except Exception as e:
         print(f"Error writing image {fpath}: {e}")
 

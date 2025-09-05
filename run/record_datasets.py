@@ -10,11 +10,11 @@ from lerobot.utils.utils import log_say
 from lerobot.utils.visualization_utils import _init_rerun
 
 # ========= 运行参数 =========
-NUM_EPISODES = 50
+NUM_EPISODES = 30
 FPS = 30
-EPISODE_TIME_SEC = 90
+EPISODE_TIME_SEC = 30
 RESET_TIME_SEC = 10
-TASK_DESCRIPTION = "拆垛"
+TASK_DESCRIPTION = "收纳螺丝螺母"
 RESUME = False
 
 # ========= 机器人与遥操作配置 =========
@@ -43,7 +43,7 @@ action_features = hw_to_dataset_features(robot.action_features, "action")
 obs_features = hw_to_dataset_features(robot.observation_features, "observation")
 dataset_features = {**action_features, **obs_features}
 
-REPO_ID = "hhws/cai_duo_double"
+REPO_ID = "hhws/shou_na"
 ROOT_DIR = "C:/Users/chlai/projects/lerobot_datasets"
 THREADS_PER_CAMERA = 4  # 参考推荐值
 num_cameras = len(getattr(robot, "cameras", {}))

@@ -21,8 +21,9 @@ TASK_DESCRIPTION = "拆垛"
 # ========= 相机&机器人 =========
 camera_config = {
     "high": OpenCVCameraConfig(index_or_path="high", width=640, height=480, fps=FPS),
-    "left": OpenCVCameraConfig(index_or_path="left_wrist", width=640, height=480, fps=FPS),
-    "right": OpenCVCameraConfig(index_or_path="right_wrist", width=640, height=480, fps=FPS),
+    "low": OpenCVCameraConfig(index_or_path="low", width=640, height=480, fps=FPS),
+    # "left": OpenCVCameraConfig(index_or_path="left_wrist", width=640, height=480, fps=FPS),
+    # "right": OpenCVCameraConfig(index_or_path="right_wrist", width=640, height=480, fps=FPS),
 }
 
 robot_config = BiSAM01FollowerConfig(
@@ -35,7 +36,7 @@ robot = BiSAM01Follower(robot_config)
 
 # ========= 策略 =========
 policy = ACTPolicy.from_pretrained(
-    "C:/Users/chlai/projects/lerobot_trained_models/act_sam01_cai_duo/checkpoints/last/pretrained_model"
+    "C:/Users/chlai/projects/lerobot_trained_models/act_sam01_luosi_fenjian_load/checkpoints/last/pretrained_model"
 )
 policy.eval()
 policy.reset()

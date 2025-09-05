@@ -142,6 +142,7 @@ def init_keyboard_listener():
     events["exit_early"] = False
     events["rerecord_episode"] = False
     events["stop_recording"] = False
+    events["start_recording"] = False
 
     if is_headless():
         logging.warning(
@@ -166,6 +167,9 @@ def init_keyboard_listener():
                 print("Escape key pressed. Stopping data recording...")
                 events["stop_recording"] = True
                 events["exit_early"] = True
+            elif key == keyboard.Key.enter:
+                print("Enter key pressed. Starting data recording...")
+                events["start_recording"] = True
         except Exception as e:
             print(f"Error handling key press: {e}")
 

@@ -81,6 +81,7 @@ from lerobot.policies.pretrained import PreTrainedPolicy
 from lerobot.robots import (  # noqa: F401
     Robot,
     RobotConfig,
+    bi_sam01_follower,
     bi_so100_follower,
     hope_jr,
     koch_follower,
@@ -91,6 +92,7 @@ from lerobot.robots import (  # noqa: F401
 from lerobot.teleoperators import (  # noqa: F401
     Teleoperator,
     TeleoperatorConfig,
+    bi_sam01_leader,
     bi_so100_leader,
     homunculus,
     koch_leader,
@@ -347,9 +349,13 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
     listener, events = init_keyboard_listener()
 
     with VideoEncodingManager(dataset):
-        recorded_episodes = 0
+        recorded_episodes = dataset.num_episodes
         while recorded_episodes < cfg.dataset.num_episodes and not events["stop_recording"]:
-            log_say(f"录制第{recorded_episodes + 1}个视频。", cfg.play_sounds)
+            log_say(f"录制第{recorded_episodes + 1}个视频，请回车确认。", cfg.play_sounds)
+            while not events["start_recording"]:
+                busy_wait(0.01)
+                continue
+
             record_loop(
                 robot=robot,
                 events=events,
@@ -378,6 +384,7 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
                     display_data=cfg.display_data,
                 )
 
+            events["start_recording"] = False
             if events["rerecord_episode"]:
                 log_say("重新录制视频。", cfg.play_sounds)
                 events["rerecord_episode"] = False

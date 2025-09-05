@@ -337,7 +337,14 @@ class ACT(nn.Module):
             # Note: The assumption here is that we are using a ResNet model (and hence layer4 is the final
             # feature map).
             # Note: The forward method of this returns a dict: {"feature_map": output}.
-            self.backbone = IntermediateLayerGetter(backbone_model, return_layers={"layer4": "feature_map"})
+            if not self.config.backbone_per_camera:
+                self.backbone = IntermediateLayerGetter(backbone_model, return_layers={"layer4": "feature_map"})
+            else:
+                self.backbone = torch.nn.Sequential()
+                for _ in range(len(self.config.image_features)):
+                    self.backbone.append(
+                        IntermediateLayerGetter(backbone_model, return_layers={"layer4": "feature_map"})
+                    )
 
         # Transformer (acts as VAE decoder when training with the variational objective).
         self.encoder = ACTEncoder(config)
@@ -468,8 +475,10 @@ class ACT(nn.Module):
             # For a list of images, the H and W may vary but H*W is constant.
             # NOTE: If modifying this section, verify on MPS devices that
             # gradients remain stable (no explosions or NaNs).
-            for img in batch["observation.images"]:
-                cam_features = self.backbone(img)["feature_map"]
+            for i, img in enumerate(batch["observation.images"]):
+                backbone = self.backbone[i] if self.config.backbone_per_camera else self.backbone
+
+                cam_features = backbone(img)["feature_map"]
                 cam_pos_embed = self.encoder_cam_feat_pos_embed(cam_features).to(dtype=cam_features.dtype)
                 cam_features = self.encoder_img_feat_input_proj(cam_features)
 
