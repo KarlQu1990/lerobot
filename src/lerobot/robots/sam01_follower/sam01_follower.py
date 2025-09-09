@@ -35,7 +35,7 @@ class SAM01Follower(Robot):
                 "wrist_flex": Motor(4, "sts3215", norm_mode_body),
                 "forearm_roll": Motor(5, "sts3215", norm_mode_body),
                 "wrist_roll": Motor(6, "sts3215", norm_mode_body),
-                "gripper": Motor(7, "sts3215", norm_mode_body),
+                "gripper": Motor(7, "sts3215", MotorNormMode.RANGE_0_100),
             },
             calibration=self.calibration,
         )
@@ -97,26 +97,27 @@ class SAM01Follower(Robot):
                 self.bus.write_calibration(self.calibration)
                 return
 
-        logger.info(f"\nRunning calibration of {self}")
+        logger.info(f"\n开始校准 {self}")
         self.bus.disable_torque()
         for motor in self.bus.motors:
             self.bus.write("Operating_Mode", motor, OperatingMode.POSITION.value)
 
-        input(f"Move {self} to the middle of its range of motion and press ENTER....")
+        input(f"转动 {self} 各舵机到其中间位置然后按回车确认...")
         homing_offsets = self.bus.set_half_turn_homings()
 
         full_turn_motor = "wrist_roll"
         unknown_range_motors = [motor for motor in self.bus.motors if motor != full_turn_motor]
-        print(
-            f"Move all joints except '{full_turn_motor}' sequentially through their "
-            "entire ranges of motion.\nRecording positions. Press ENTER to stop..."
-        )
+        print(f"按顺序转动除 '{full_turn_motor}' 外的舵机到其最小和最大范围，记录其位置。\n按回车结束...")
         range_mins, range_maxes = self.bus.record_ranges_of_motion(unknown_range_motors)
         range_mins[full_turn_motor] = 0
         range_maxes[full_turn_motor] = 4095
 
         self.calibration = {}
         for motor, m in self.bus.motors.items():
+            # homing_offset = homing_offsets[motor]
+            # if motor == "gripper" and self.config.port == "left_follower":
+            #     homing_offset = -homing_offset
+
             self.calibration[motor] = MotorCalibration(
                 id=m.id,
                 drive_mode=0,
@@ -127,7 +128,7 @@ class SAM01Follower(Robot):
 
         self.bus.write_calibration(self.calibration)
         self._save_calibration()
-        print("Calibration saved to", self.calibration_fpath)
+        print("校准文件已保存到:", self.calibration_fpath)
 
     def configure(self) -> None:
         with self.bus.torque_disabled():

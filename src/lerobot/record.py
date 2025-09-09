@@ -348,6 +348,9 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
 
     listener, events = init_keyboard_listener()
 
+    # 清除图片缓存
+    dataset.clear_image_cache()
+
     with VideoEncodingManager(dataset):
         recorded_episodes = dataset.num_episodes
         while recorded_episodes < cfg.dataset.num_episodes and not events["stop_recording"]:

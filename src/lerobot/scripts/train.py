@@ -68,7 +68,7 @@ torch._dynamo.config.reorderable_logging_functions.add(print)
 torch._inductor.config.fallback_random = True
 
 
-warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", module="torchvision")
 
 
 def terminate_handler(signum, frame):

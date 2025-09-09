@@ -948,6 +948,14 @@ class LeRobotDataset(torch.utils.data.Dataset):
         if self.image_writer is not None:
             self.image_writer.wait_until_done()
 
+    def clear_image_cache(self) -> None:
+        """clear all image cache."""
+        image_dir = self.root / "images"
+        try:
+            shutil.rmtree(image_dir)
+        except Exception:
+            pass
+
     def encode_episode_videos(self, episode_index: int) -> None:
         """
         Use ffmpeg to convert frames stored as png into mp4 videos.

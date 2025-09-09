@@ -26,6 +26,7 @@ from lerobot.envs.configs import EnvConfig
 from lerobot.envs.utils import env_to_policy_features
 from lerobot.policies.act.configuration_act import ACTConfig
 from lerobot.policies.diffusion.configuration_diffusion import DiffusionConfig
+from lerobot.policies.interact.configuration_interact import InterACTConfig
 from lerobot.policies.pi0.configuration_pi0 import PI0Config
 from lerobot.policies.pi0fast.configuration_pi0fast import PI0FASTConfig
 from lerobot.policies.pretrained import PreTrainedPolicy
@@ -50,6 +51,12 @@ def get_policy_class(name: str) -> PreTrainedPolicy:
         from lerobot.policies.act.modeling_act import ACTPolicy
 
         return ACTPolicy
+
+    elif name == "interact":
+        from lerobot.policies.interact.modeling_interact import InterACTPolicy
+
+        return InterACTPolicy
+
     elif name == "vqbet":
         from lerobot.policies.vqbet.modeling_vqbet import VQBeTPolicy
 
@@ -85,6 +92,8 @@ def make_policy_config(policy_type: str, **kwargs) -> PreTrainedConfig:
         return DiffusionConfig(**kwargs)
     elif policy_type == "act":
         return ACTConfig(**kwargs)
+    elif policy_type == "interact":
+        return InterACTConfig(**kwargs)
     elif policy_type == "vqbet":
         return VQBeTConfig(**kwargs)
     elif policy_type == "pi0":
@@ -140,9 +149,10 @@ def make_policy(
         raise NotImplementedError(
             "Current implementation of VQBeT does not support `mps` backend. Please use `cpu` or `cuda` backend."
         )
-    
+
     if cfg.type == "pi0":
         import os
+
         os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
     policy_cls = get_policy_class(cfg.type)

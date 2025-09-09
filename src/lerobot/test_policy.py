@@ -38,12 +38,43 @@ class TestPolicyConfig:
     display_data: bool = True
 
 
+def init_keyboard_listener():
+    events = {}
+    events["to_init_pos"] = False
+    events["pause"] = False
+    events["resume"] = False
+
+    # Only import pynput if not in a headless environment
+    from pynput import keyboard
+
+    def on_press(key):
+        try:
+            if key == keyboard.Key.left:
+                print("准备回到初始位置...")
+                events["to_init_pos"] = True
+            elif key == keyboard.Key.space:
+                print("暂停运动...")
+                events["pause"] = True
+            elif key == keyboard.Key.enter:
+                print("恢复运动...")
+                events["resume"] = True
+        except Exception as e:
+            print(f"Error handling key press: {e}")
+
+    listener = keyboard.Listener(on_press=on_press)
+    listener.start()
+
+    return listener, events
+
+
 @parser.wrap()
 def test(cfg: TestPolicyConfig):
     init_logging()
     logging.info(pformat(asdict(cfg)))
     if cfg.display_data:
         _init_rerun(session_name="recording")
+
+    _, events = init_keyboard_listener()
 
     policy_class = get_policy_class(cfg.policy.type)
 
@@ -73,6 +104,10 @@ def test(cfg: TestPolicyConfig):
 
     with tqdm.tqdm(total=control_time_s, desc="推理进度") as pbar:
         while timestamp < control_time_s:
+            # if events.get("exit_early", False):
+            #     events["exit_early"] = False
+            #     break
+
             start_loop_t = time.perf_counter()
 
             observation = robot.get_observation()
@@ -118,7 +153,6 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("##############################")
         import rerun as rr
 
         rr.rerun_shutdown()
