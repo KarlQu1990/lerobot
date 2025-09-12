@@ -1,46 +1,46 @@
 #!/usr/bin/env python
+
 import math
 from collections import deque
 from itertools import chain
 from typing import Callable
 
-import einops
 import numpy as np
 import torch
 import torch.nn.functional as F  # noqa: N812
 import torchvision
+from huggingface_hub import PyTorchModelHubMixin
 from torch import Tensor, nn
 from torchvision.models._utils import IntermediateLayerGetter
 from torchvision.ops.misc import FrozenBatchNorm2d
 
 from lerobot.constants import ACTION, OBS_IMAGES
-from lerobot.policies.act.modeling_act import (
-    ACTDecoder,  # 直接复用通用层实现风格
-    ACTDecoderLayer,
-    ACTEncoderLayer,
-    ACTSinusoidalPositionEmbedding2d,
-    create_sinusoidal_pos_embedding,
-    get_activation_fn,
-)
 from lerobot.policies.interact.configuration_interact import InterACTConfig
 from lerobot.policies.normalize import Normalize, Unnormalize
 from lerobot.policies.pretrained import PreTrainedPolicy
 
 
 class InterACTPolicy(PreTrainedPolicy):
-    """InterACT policy adapted to LeRobot ACT API."""
 
     config_class = InterACTConfig
     name = "interact"
 
     def __init__(
-        self,
-        config: InterACTConfig,
-        dataset_stats: dict[str, dict[str, Tensor]] | None = None,
+            self,
+            config: InterACTConfig,
+            dataset_stats: dict[str, dict[str, Tensor]] | None = None,
     ):
+        """
+        Args:
+            config: Policy configuration class instance or None, in which case the default instantiation of
+                    the configuration class is used.
+            dataset_stats: Dataset statistics to be used for normalization. If not passed here, it is expected
+                that they will be passed with a call to `load_state_dict` before the policy is used.
+        """
         super().__init__(config)
-        config.validate_features()
-        self.config = config
+        if config is None:
+            config = InterACTConfig()
+        self.config: InterACTConfig = config
 
         self.normalize_inputs = Normalize(config.input_features, config.normalization_mapping, dataset_stats)
         self.normalize_targets = Normalize(config.output_features, config.normalization_mapping, dataset_stats)
@@ -48,12 +48,16 @@ class InterACTPolicy(PreTrainedPolicy):
 
         self.model = InterACT(config)
 
+        self.expected_image_keys = [k for k in config.input_features if k.startswith("observation.image")]
+
         if config.temporal_ensemble_coeff is not None:
             self.temporal_ensembler = ACTTemporalEnsembler(config.temporal_ensemble_coeff, config.chunk_size)
 
         self.reset()
 
     def get_optim_params(self) -> dict:
+        # TODO(aliberts, rcadene): As of now, lr_backbone == lr
+        # Should we remove this and just `return self.parameters()`?
         return [
             {
                 "params": [
@@ -66,55 +70,73 @@ class InterACTPolicy(PreTrainedPolicy):
             },
         ]
 
+
     def reset(self):
+        """This should be called whenever the environment is reset."""
         if self.config.temporal_ensemble_coeff is not None:
             self.temporal_ensembler.reset()
         else:
             self._action_queue = deque([], maxlen=self.config.n_action_steps)
 
-    @torch.no_grad()
+    @torch.no_grad
     def select_action(self, batch: dict[str, Tensor]) -> Tensor:
+        """Select a single action given environment observations.
+
+        This method wraps `select_actions` in order to return one action at a time for execution in the
+        environment. It works by managing the actions in a queue and only calling `select_actions` when the
+        queue is empty.
+        """
         self.eval()
 
         if self.config.temporal_ensemble_coeff is not None:
             actions = self.predict_action_chunk(batch)
-            return self.temporal_ensembler.update(actions)
+            action = self.temporal_ensembler.update(actions)
+            return action
 
         if len(self._action_queue) == 0:
             actions = self.predict_action_chunk(batch)[:, : self.config.n_action_steps]
             self._action_queue.extend(actions.transpose(0, 1))
+
         return self._action_queue.popleft()
 
     @torch.no_grad()
     def predict_action_chunk(self, batch: dict[str, Tensor]) -> Tensor:
+        """Predict a chunk of actions given environment observations."""
         self.eval()
+
         batch = self.normalize_inputs(batch)
         if self.config.image_features:
-            batch = dict(batch)
-            batch[OBS_IMAGES] = [batch[k] for k in self.config.image_features]
-        actions = self.model(batch)
+            batch = dict(batch)  # shallow copy so that adding a key doesn't modify the original
+            batch[OBS_IMAGES] = [batch[key] for key in self.config.image_features]
+
+        self.batch_ = self.model(batch)[0]
+        actions = self.batch_
         actions = self.unnormalize_outputs({ACTION: actions})[ACTION]
         return actions
 
     def preprocess(self, batch: dict[str, Tensor]) -> dict[str, Tensor]:
+        """Run the batch through the model and compute the loss for training or validation."""
         batch = self.normalize_inputs(batch)
+
         if self.config.image_features:
-            batch = dict(batch)
-            batch[OBS_IMAGES] = [batch[k] for k in self.config.image_features]
+            batch = dict(batch)  # shallow copy so that adding a key doesn't modify the original
+            batch[OBS_IMAGES] = [batch[key] for key in self.config.image_features]
+
         batch = self.normalize_targets(batch)
         return batch
 
     def forward(self, batch: dict[str, Tensor]) -> tuple[Tensor, dict]:
+        """Run the batch through the model and compute the loss for training or validation."""
         actions_hat = self.model(batch)
+
         l1_loss = (
-            F.l1_loss(batch[ACTION], actions_hat, reduction="none") * ~batch["action_is_pad"].unsqueeze(-1)
+                F.l1_loss(batch[ACTION], actions_hat, reduction="none") * ~batch["action_is_pad"].unsqueeze(-1)
         ).mean()
+
         loss_dict = {"l1_loss": l1_loss}
-        # 可选：如果你需要 L2：
-        # l2 = (F.mse_loss(batch[ACTION], actions_hat, reduction="none") * ~batch["action_is_pad"].unsqueeze(-1)).mean()
-        # loss_dict["l2_loss"] = l2
-        loss = l1_loss
-        return loss, loss_dict
+        loss_dict["loss"] = l1_loss
+
+        return l1_loss, loss_dict
 
 
 class ACTTemporalEnsembler:
@@ -125,27 +147,40 @@ class ACTTemporalEnsembler:
         self.reset()
 
     def reset(self):
+        """Resets the online computation variables."""
         self.ensembled_actions = None
+        # (chunk_size,) count of how many actions are in the ensemble for each time step in the sequence.
         self.ensembled_actions_count = None
 
     def update(self, actions: Tensor) -> Tensor:
+        """
+        Takes a (batch, chunk_size, action_dim) sequence of actions, update the temporal ensemble for all
+        time steps, and pop/return the next batch of actions in the sequence.
+        """
         self.ensemble_weights = self.ensemble_weights.to(device=actions.device)
         self.ensemble_weights_cumsum = self.ensemble_weights_cumsum.to(device=actions.device)
         if self.ensembled_actions is None:
+            # Initializes `self._ensembled_action` to the sequence of actions predicted during the first
+            # time step of the episode.
             self.ensembled_actions = actions.clone()
+            # Note: The last dimension is unsqueeze to make sure we can broadcast properly for tensor
+            # operations later.
             self.ensembled_actions_count = torch.ones(
                 (self.chunk_size, 1), dtype=torch.long, device=self.ensembled_actions.device
             )
         else:
+            # self.ensembled_actions will have shape (batch_size, chunk_size - 1, action_dim). Compute
+            # the online update for those entries.
             self.ensembled_actions *= self.ensemble_weights_cumsum[self.ensembled_actions_count - 1]
             self.ensembled_actions += actions[:, :-1] * self.ensemble_weights[self.ensembled_actions_count]
             self.ensembled_actions /= self.ensemble_weights_cumsum[self.ensembled_actions_count]
             self.ensembled_actions_count = torch.clamp(self.ensembled_actions_count + 1, max=self.chunk_size)
+            # The last action, which has no prior online average, needs to get concatenated onto the end.
             self.ensembled_actions = torch.cat([self.ensembled_actions, actions[:, -1:]], dim=1)
-            self.ensembled_actions_count = torch.cat([
-                self.ensembled_actions_count,
-                torch.ones_like(self.ensembled_actions_count[-1:]),
-            ])
+            self.ensembled_actions_count = torch.cat(
+                [self.ensembled_actions_count, torch.ones_like(self.ensembled_actions_count[-1:])]
+            )
+        # "Consume" the first action.
         action, self.ensembled_actions, self.ensembled_actions_count = (
             self.ensembled_actions[:, 0],
             self.ensembled_actions[:, 1:],
@@ -158,301 +193,400 @@ class InterACT(nn.Module):
     def __init__(self, config: InterACTConfig):
         super().__init__()
         self.config = config
-
-        self.use_robot_state = bool(self.config.robot_state_feature)
-        self.use_images = bool(self.config.image_features)
-        self.use_env_state = bool(self.config.env_state_feature)
+        # BERT style VAE encoder with input tokens [cls, robot_state, *action_sequence].
+        # The cls token forms parameters of the latent's distribution (like this [*means, *log_variances]).
+        self.use_robot_state = self.config.robot_state_feature
+        self.use_images = self.config.image_features
+        self.use_env_state = self.config.env_state_feature
         self.use_av_arm = config.use_av_arm
         self.num_cls_tokens_arm = config.num_cls_tokens_arm
         self.num_cls_tokens_image = config.num_cls_tokens_image
 
-        # ----- CLS tokens & fixed positional encodings (device-agnostic) -----
         if self.use_robot_state:
-            self.cls_input_arm1 = nn.Embedding(1, config.dim_model)
-            self.cls_input_arm2 = nn.Embedding(1, config.dim_model)
+            num_cls_tokens_arm = config.num_cls_tokens_arm
+            self.cls_input_arm1 = nn.Embedding(1, config.dim_model).to(device='cuda:0')
+            self.cls_input_arm2 = nn.Embedding(1, config.dim_model).to(device='cuda:0')
             if self.use_av_arm:
-                self.cls_input_av = nn.Embedding(1, config.dim_model)
+                self.cls_input_av = nn.Embedding(1, config.dim_model).to(device='cuda:0')
 
-            num_arm_input_token_encoder = self.num_cls_tokens_arm + 7  # 每臂 7 维
+        if self.use_images:
+            num_cls_tokens_image = config.num_cls_tokens_image
+            self.cls_input_image = nn.Embedding(1, config.dim_model).to(device='cuda:0')
+
+        if self.use_robot_state:
+            num_arm_input_token_encoder = num_cls_tokens_arm + 7
+
+            cls_input_arm1 = self.cls_input_arm1.weight
+            self.cls_token_arm1 = cls_input_arm1.repeat(num_cls_tokens_arm, 1)
+            cls_input_arm2 = self.cls_input_arm2.weight
+            self.cls_token_arm2 = cls_input_arm2.repeat(num_cls_tokens_arm, 1)
+
             self.register_buffer(
                 "arm1_encoder_pos_enc",
                 create_sinusoidal_pos_embedding(num_arm_input_token_encoder, config.dim_model).unsqueeze(0),
-                persistent=False,
             )
             self.register_buffer(
                 "arm2_encoder_pos_enc",
                 create_sinusoidal_pos_embedding(num_arm_input_token_encoder, config.dim_model).unsqueeze(0),
-                persistent=False,
             )
             if self.use_av_arm:
+                cls_input_av = self.cls_input_av.weight
+                self.cls_token_av = cls_input_av.repeat(num_cls_tokens_arm, 1)  # (num_cls_right, 1, dim_model)
                 self.register_buffer(
                     "av_encoder_pos_enc",
                     create_sinusoidal_pos_embedding(num_arm_input_token_encoder, config.dim_model).unsqueeze(0),
-                    persistent=False,
                 )
 
         if self.use_images:
-            self.cls_input_image = nn.Embedding(1, config.dim_model)
+            cls_input_image = self.cls_input_image.weight
+            self.cls_token_image = cls_input_image.repeat(num_cls_tokens_image, 1)  # (num_cls_image, 1, dim_model)
             self.register_buffer(
                 "image_encoder_pos_enc",
-                create_sinusoidal_pos_embedding(self.num_cls_tokens_image, config.dim_model).unsqueeze(0),
-                persistent=False,
+                create_sinusoidal_pos_embedding(num_cls_tokens_image, config.dim_model).unsqueeze(0),
             )
 
         if self.use_av_arm:
-            total_cls = 3 * self.num_cls_tokens_arm + self.num_cls_tokens_image
+            self.register_buffer(
+                "cls_encoder_pos_enc",
+                create_sinusoidal_pos_embedding(3 * num_cls_tokens_arm + num_cls_tokens_image,
+                                                config.dim_model).unsqueeze(0),
+            )
         else:
-            total_cls = 2 * self.num_cls_tokens_arm + self.num_cls_tokens_image
-        self.register_buffer(
-            "cls_encoder_pos_enc",
-            create_sinusoidal_pos_embedding(total_cls, config.dim_model).unsqueeze(0),
-            persistent=False,
-        )
+            self.register_buffer(
+                "cls_encoder_pos_enc",
+                create_sinusoidal_pos_embedding(2 * num_cls_tokens_arm + num_cls_tokens_image,
+                                                config.dim_model).unsqueeze(0),
+            )
 
-        # ----- Backbone -----
+        # Backbone for image feature extraction.
         if self.use_images:
             backbone_model = getattr(torchvision.models, config.vision_backbone)(
                 replace_stride_with_dilation=[False, False, config.replace_final_stride_with_dilation],
                 weights=config.pretrained_backbone_weights,
                 norm_layer=FrozenBatchNorm2d,
             )
+            # Note: The assumption here is that we are using a ResNet model (and hence layer4 is the final
+            # feature map).
+            # Note: The forward method of this returns a dict: {"feature_map": output}.
             self.backbone = IntermediateLayerGetter(backbone_model, return_layers={"layer4": "feature_map"})
-            self.encoder_img_feat_input_proj = nn.Conv2d(backbone_model.fc.in_features, config.dim_model, kernel_size=1)
-            self.encoder_cam_feat_pos_embed = ACTSinusoidalPositionEmbedding2d(config.dim_model // 2)
 
-        # ----- Transformer encoder / decoder -----
+        # Transformer (acts as VAE decoder when training with the variational objective).
         self.encoder = InterACTEncoder(config)
         self.decoder = ACTDecoder(config)
 
-        # robot state -> hidden
-        if self.use_robot_state:
-            self.encoder_robot_state_input_proj = nn.Linear(1, config.dim_model)
+        self.encoder_robot_state_input_proj = nn.Linear(1, 512)
 
-        # decoder pos
+        # Transformer encoder input projections. The tokens will be structured like
+        # [latent, (robot_state), (env_state), (image_feature_map_pixels)].
+
+        if self.use_images:
+            self.encoder_img_feat_input_proj = nn.Conv2d(
+                backbone_model.fc.in_features, config.dim_model, kernel_size=1
+            )
+        # Transformer encoder positional embeddings.
+        # n_1d_tokens = 1  # for the latent
+        # if self.use_robot_state:
+        #     n_1d_tokens += 1
+        # if self.use_env_state:
+        #     n_1d_tokens += 1
+        # self.encoder_1d_feature_pos_embed = nn.Embedding(n_1d_tokens, config.dim_model)
+        if self.use_images:
+            self.encoder_cam_feat_pos_embed = ACTSinusoidalPositionEmbedding2d(config.dim_model // 2)
+
+        # Transformer decoder.
+        # Learnable positional embedding for the transformer's decoder (in the style of DETR object queries).
         self.decoder_pos_embed = nn.Embedding(config.chunk_size, config.dim_model)
 
-        # action head
-        self.action_head = nn.Linear(config.dim_model, self.config.action_feature.shape[0])
+        # Final action regression head on the output of the transformer's decoder.
+        self.action_head = nn.Linear(config.dim_model, config.action_feature.shape[0])
 
         self._reset_parameters()
 
     def _reset_parameters(self):
+        """Xavier-uniform initialization of the transformer parameters as in the original code."""
         for p in chain(self.encoder.parameters(), self.decoder.parameters()):
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
-    def forward(self, batch: dict[str, Tensor]) -> Tensor:
-        # batch[OBS_IMAGES] 是 List[Tensor]，与 ACT 保持一致
-        if ACTION in batch:  # 训练时由 policy.preprocess 注入
-            pass
+    def forward(self, batch: dict[str, Tensor]) -> tuple[Tensor, tuple[Tensor, Tensor] | tuple[None, None]]:
+        """A forward pass through the Action Chunking Transformer (with optional VAE encoder).
 
-        if self.use_images:
-            assert OBS_IMAGES in batch
-        batch_size = (
-            batch[OBS_IMAGES][0].shape[0] if self.use_images else batch["observation.environment_state"].shape[0]
-        )
+        `batch` should have the following structure:
+        {
+            "observation.state" (optional): (B, state_dim) batch of robot states.
 
-        # ----- robot state tokens -----
+            "observation.images": (B, n_cameras, C, H, W) batch of images.
+                AND/OR
+            "observation.environment_state": (B, env_dim) batch of environment states.
+
+            "action" (optional, only if training with VAE): (B, chunk_size, action dim) batch of actions.
+        }
+
+        Returns:
+            (B, chunk_size, action_dim) batch of action sequences
+            Tuple containing the latent PDF's parameters (mean, log(σ²)) both as (B, L) tensors where L is the
+            latent dimension.
+        """
+        if self.training:
+            assert (
+                    "action" in batch
+            ), "actions must be provided when using the variational objective in training mode."
+
+        if "observation.images" in batch:
+            batch_size = batch["observation.images"][0].shape[0]
+        else:
+            batch_size = batch["observation.environment_state"].shape[0]
+
+        # Prepare transformer encoder inputs.
+        arm1_state = batch["observation.state"][:, :7]  # Assuming the first 7 are for the left arm
+        arm1_state_proj = self.encoder_robot_state_input_proj(arm1_state.unsqueeze(-1))
+        arm2_state = batch["observation.state"][:, 7:14]  # Assuming the last 7 are for the right arm
+        arm2_state_proj = self.encoder_robot_state_input_proj(arm2_state.unsqueeze(-1))
+        if self.use_av_arm:
+            av_state = batch["observation.state"][:, 14:21]
+            av_state_proj = self.encoder_robot_state_input_proj(av_state.unsqueeze(-1))
+
+        encoder_in_pos_embed = list(self.arm1_encoder_pos_enc)
+        encoder_in_pos_embed.extend(list(self.arm2_encoder_pos_enc))
+        if self.use_av_arm:
+            encoder_in_pos_embed.extend(list(self.av_encoder_pos_enc))
+
+        cls_token_arm1 = self.cls_token_arm1.unsqueeze(0).repeat(batch_size, 1, 1)
+        cls_token_arm2 = self.cls_token_arm2.unsqueeze(0).repeat(batch_size, 1, 1)
+        if self.use_av_arm:
+            cls_token_av = self.cls_token_av.unsqueeze(0).repeat(batch_size, 1, 1)
+
         encoder_in_tokens = []
-        encoder_in_pos_embed_list = []
 
+        # Robot state token.
         if self.use_robot_state:
-            arm1_state = batch["observation.state"][:, :7]
-            arm2_state = batch["observation.state"][:, 7:14]
-            arm1_state_proj = self.encoder_robot_state_input_proj(arm1_state.unsqueeze(-1))
-            arm2_state_proj = self.encoder_robot_state_input_proj(arm2_state.unsqueeze(-1))
-
-            cls_token_arm1 = (
-                self.cls_input_arm1.weight.repeat(self.num_cls_tokens_arm, 1).unsqueeze(0).repeat(batch_size, 1, 1)
-            )
-            cls_token_arm2 = (
-                self.cls_input_arm2.weight.repeat(self.num_cls_tokens_arm, 1).unsqueeze(0).repeat(batch_size, 1, 1)
-            )
-
             encoder_in_tokens.append(torch.cat([cls_token_arm1, arm1_state_proj], dim=1))
             encoder_in_tokens.append(torch.cat([cls_token_arm2, arm2_state_proj], dim=1))
-
-            encoder_in_pos_embed_list.extend(list(self.arm1_encoder_pos_enc))
-            encoder_in_pos_embed_list.extend(list(self.arm2_encoder_pos_enc))
-
             if self.use_av_arm:
-                av_state = batch["observation.state"][:, 14:21]
-                av_state_proj = self.encoder_robot_state_input_proj(av_state.unsqueeze(-1))
-                cls_token_av = (
-                    self.cls_input_av.weight.repeat(self.num_cls_tokens_arm, 1).unsqueeze(0).repeat(batch_size, 1, 1)
-                )
                 encoder_in_tokens.append(torch.cat([cls_token_av, av_state_proj], dim=1))
-                encoder_in_pos_embed_list.extend(list(self.av_encoder_pos_enc))
 
-        # ----- image features -----
+        # Camera observation features and positional embeddings.
         if self.use_images:
             all_cam_features = []
             all_cam_pos_embeds = []
-            cls_token_image = (
-                self.cls_input_image.weight.repeat(self.num_cls_tokens_image, 1).unsqueeze(0).repeat(batch_size, 1, 1)
-            )
+            cls_token_image = self.cls_token_image.unsqueeze(0).repeat(batch_size, 1, 1)
+            # all_cam_pos_embeds.append()
 
-            for img in batch[OBS_IMAGES]:
-                cam_features = self.backbone(img)["feature_map"]
+            for i, img in enumerate(batch["observation.images"]):
+                cam_features = self.backbone(img)['feature_map']
                 cam_pos_embed = self.encoder_cam_feat_pos_embed(cam_features).to(dtype=cam_features.dtype)
                 cam_features = self.encoder_img_feat_input_proj(cam_features)  # (B, C, h, w)
                 all_cam_features.append(cam_features)
                 all_cam_pos_embeds.append(cam_pos_embed)
 
-            all_cam_features = torch.cat(all_cam_features, dim=-1)  # 按宽拼接
-            encoder_in_tokens.append(
-                torch.cat([cls_token_image, einops.rearrange(all_cam_features, "b c h w -> b (h w) c")], dim=1)
-            )
-
+            all_cam_features = torch.cat(all_cam_features, dim=-1)
+            feat_seq = all_cam_features.flatten(2).transpose(1, 2)
+            encoder_in_tokens.append(torch.cat([cls_token_image, feat_seq], dim=1))
             all_cam_pos_embeds = torch.cat(all_cam_pos_embeds, dim=-1)
-            encoder_in_pos_embed_list.append(
-                torch.cat(
-                    [
-                        list(self.image_encoder_pos_enc)[0],
-                        list(einops.rearrange(all_cam_pos_embeds, "b c h w -> b (h w) c"))[0],
-                    ],
-                    dim=0,
-                )
-            )
+            pos_seq = all_cam_pos_embeds.flatten(2).transpose(1, 2)
+            image_cls_pos = self.image_encoder_pos_enc[0]
+            pos_seq_first = pos_seq[0]
 
-        encoder_in_tokens = torch.cat(encoder_in_tokens, dim=1)  # (B, S, D)
-        encoder_in_pos_embed = torch.cat(encoder_in_pos_embed_list, dim=0)  # (S, D)
-        encoder_in_cls_pos_embed = torch.cat(list(self.cls_encoder_pos_enc))  # (S_cls, D)
+            encoder_in_pos_embed.append(torch.cat([image_cls_pos, pos_seq_first], dim=0))
 
-        # expand pos embeds to (S, B, D)
+        encoder_in_tokens = torch.cat(encoder_in_tokens, axis=1)
+        encoder_in_pos_embed = torch.cat(encoder_in_pos_embed, axis=0)
+        encoder_in_cls_pos_embed = torch.cat(list(self.cls_encoder_pos_enc))
+
         encoder_in_pos_embed = encoder_in_pos_embed.unsqueeze(1).expand(-1, encoder_in_tokens.size(0), -1)
         encoder_in_cls_pos_embed = encoder_in_cls_pos_embed.unsqueeze(1).expand(-1, encoder_in_tokens.size(0), -1)
 
-        # ----- encode -----
-        encoder_out = self.encoder(
-            encoder_in_tokens, pos_embed=encoder_in_pos_embed, pos_embed_cls=encoder_in_cls_pos_embed
-        )
+        # Forward pass through the transformer modules.
+        encoder_out = self.encoder(encoder_in_tokens, pos_embed=encoder_in_pos_embed,
+                                   pos_embed_cls=encoder_in_cls_pos_embed)
 
-        # ----- slice segments back -----
-        arm = self.num_cls_tokens_arm
-        img = self.num_cls_tokens_image
-        idx = 0
-        encoder_out_arm1 = encoder_out[:, idx : idx + arm + 7]
-        idx += arm + 7
-        encoder_pos_arm1 = encoder_in_pos_embed[idx - (arm + 7) : idx]
-        encoder_out_arm2 = encoder_out[:, idx : idx + arm + 7]
-        idx += arm + 7
-        encoder_pos_arm2 = encoder_in_pos_embed[idx - (arm + 7) : idx]
+        # Prepare the decoder input.
+        encoder_out_arm1 = encoder_out[:self.num_cls_tokens_arm + 7]
+        encoder_in_pos_embed_arm1 = encoder_in_pos_embed[:self.num_cls_tokens_arm + 7]
+        encoder_out_arm2 = encoder_out[self.num_cls_tokens_arm + 7:2 * self.num_cls_tokens_arm + 14]
+        encoder_in_pos_embed_arm2 = encoder_in_pos_embed[self.num_cls_tokens_arm + 7:2 * self.num_cls_tokens_arm + 14]
         if self.use_av_arm:
-            encoder_out_av = encoder_out[:, idx : idx + arm + 7]
-            idx += arm + 7
-            encoder_pos_av = encoder_in_pos_embed[idx - (arm + 7) : idx]
-        encoder_out_img = encoder_out[:, idx:]
-        encoder_pos_img = encoder_in_pos_embed[idx:]
+            encoder_out_av = encoder_out[2 * self.num_cls_tokens_arm + 14:3 * self.num_cls_tokens_arm + 21]
+            encoder_in_pos_embed_av = encoder_in_pos_embed[
+                                      2 * self.num_cls_tokens_arm + 14:3 * self.num_cls_tokens_arm + 21]
+            encoder_out_image = encoder_out[3 * self.num_cls_tokens_arm + 21:]
+            encoder_in_pos_embed_image = encoder_in_pos_embed[3 * self.num_cls_tokens_arm + 21:]
 
-        if self.use_av_arm:
             encoder_out_real = torch.cat(
-                [
-                    encoder_out_arm1[:, :arm],
-                    encoder_out_arm2[:, :arm],
-                    encoder_out_av[:, :arm],
-                    encoder_out_img[:, img:],
-                ],
-                dim=1,
-            )
-            encoder_pos_real = torch.cat(
-                [encoder_pos_arm1[:arm], encoder_pos_arm2[:arm], encoder_pos_av[:arm], encoder_pos_img[img:]],
-                dim=0,
-            )
+                [encoder_out_arm1[:self.num_cls_tokens_arm], encoder_out_arm2[:self.num_cls_tokens_arm],
+                 encoder_out_av[:self.num_cls_tokens_arm], encoder_out_image[self.num_cls_tokens_image:]], dim=0)
+            encoder_in_pos_embed_real = torch.cat([encoder_in_pos_embed_arm1[:self.num_cls_tokens_arm],
+                                                   encoder_in_pos_embed_arm2[:self.num_cls_tokens_arm],
+                                                   encoder_in_pos_embed_av[:self.num_cls_tokens_arm],
+                                                   encoder_in_pos_embed_image[self.num_cls_tokens_image:]], dim=0)
         else:
-            encoder_out_real = torch.cat(
-                [encoder_out_arm1[:, :arm], encoder_out_arm2[:, :arm], encoder_out_img[:, img:]],
-                dim=1,
-            )
-            encoder_pos_real = torch.cat(
-                [encoder_pos_arm1[:arm], encoder_pos_arm2[:arm], encoder_pos_img[img:]],
-                dim=0,
-            )
+            encoder_out_image = encoder_out[2 * self.num_cls_tokens_arm + 14:]
+            encoder_in_pos_embed_image = encoder_in_pos_embed[2 * self.num_cls_tokens_arm + 14:]
 
-        # ----- decode -----
+            encoder_out_real = torch.cat(
+                [encoder_out_arm1[:self.num_cls_tokens_arm], encoder_out_arm2[:self.num_cls_tokens_arm],
+                 encoder_out_image[self.num_cls_tokens_image:]], dim=0)
+            encoder_in_pos_embed_real = torch.cat([encoder_in_pos_embed_arm1[:self.num_cls_tokens_arm],
+                                                   encoder_in_pos_embed_arm2[:self.num_cls_tokens_arm],
+                                                   encoder_in_pos_embed_image[self.num_cls_tokens_image:]], dim=0)
+
+        # encoder_out_real = torch.cat([encoder_out[:self.num_cls_tokens_arm], encoder_out[self.num_cls_tokens_arm+7:2*self.num_cls_tokens_arm+7], encoder_out[2*self.num_cls_tokens_arm+self.num_cls_tokens_image+14:]], dim=0)
+        # encoder_in_pos_embed_real = torch.cat([encoder_in_pos_embed[:self.num_cls_tokens_arm], encoder_in_pos_embed[self.num_cls_tokens_arm+7:2*self.num_cls_tokens_arm+7], encoder_in_pos_embed[2*self.num_cls_tokens_arm+self.num_cls_tokens_image+14:]], dim=0)
+        # TODO(rcadene, alexander-soare): remove call to `device` ; precompute and use buffer
         decoder_in = torch.zeros(
             (self.config.chunk_size, batch_size, self.config.dim_model),
-            dtype=encoder_pos_real.dtype,
-            device=encoder_pos_real.device,
+            dtype=encoder_in_pos_embed.dtype,
+            device=encoder_in_pos_embed.device,
         )
         decoder_out = self.decoder(
             decoder_in,
-            encoder_out_real.transpose(0, 1),  # (S, B, D)
-            encoder_pos_embed=encoder_pos_real,
+            encoder_out_real,
+            encoder_pos_embed=encoder_in_pos_embed_real,
             decoder_pos_embed=self.decoder_pos_embed.weight.unsqueeze(1),
         )
 
-        actions = self.action_head(decoder_out.transpose(0, 1))  # (B, S, action_dim)
+        # Move back to (B, S, C).
+        decoder_out = decoder_out.transpose(0, 1)
+
+        actions = self.action_head(decoder_out)
+
         return actions
+
+
+# class ACTEncoder(nn.Module):
+#     """Convenience module for running multiple encoder layers, maybe followed by normalization."""
+
+#     def __init__(self, config: InterACTConfig, is_vae_encoder: bool = False):
+#         super().__init__()
+#         self.is_vae_encoder = is_vae_encoder
+#         num_layers = config.n_vae_encoder_layers if self.is_vae_encoder else config.n_encoder_layers
+#         self.layers = nn.ModuleList([ACTEncoderLayer(config) for _ in range(num_layers)])
+#         self.norm = nn.LayerNorm(config.dim_model) if config.pre_norm else nn.Identity()
+
+#     def forward(
+#         self, x: Tensor, pos_embed: Tensor | None = None, key_padding_mask: Tensor | None = None
+#     ) -> Tensor:
+#         for layer in self.layers:
+#             x = layer(x, pos_embed=pos_embed, key_padding_mask=key_padding_mask)
+#         x = self.norm(x)
+#         return x
+
+class ACTEncoderLayer(nn.Module):
+    def __init__(self, config: InterACTConfig):
+        super().__init__()
+        self.self_attn = nn.MultiheadAttention(config.dim_model, config.n_heads, dropout=config.dropout)
+
+        # Feed forward layers.
+        self.linear1 = nn.Linear(config.dim_model, config.dim_feedforward)
+        self.dropout = nn.Dropout(config.dropout)
+        self.linear2 = nn.Linear(config.dim_feedforward, config.dim_model)
+
+        self.norm1 = nn.LayerNorm(config.dim_model)
+        self.norm2 = nn.LayerNorm(config.dim_model)
+        self.dropout1 = nn.Dropout(config.dropout)
+        self.dropout2 = nn.Dropout(config.dropout)
+
+        self.activation = get_activation_fn(config.feedforward_activation)
+        self.pre_norm = config.pre_norm
+
+    def forward(self, x, pos_embed: Tensor | None = None, key_padding_mask: Tensor | None = None) -> Tensor:
+        skip = x
+        if self.pre_norm:
+            x = self.norm1(x)
+        q = k = x if pos_embed is None else x + pos_embed
+        x = self.self_attn(q, k, value=x, key_padding_mask=key_padding_mask)
+        x = x[0]  # note: [0] to select just the output, not the attention weights
+        x = skip + self.dropout1(x)
+        if self.pre_norm:
+            skip = x
+            x = self.norm2(x)
+        else:
+            x = self.norm1(x)
+            skip = x
+        x = self.linear2(self.dropout(self.activation(self.linear1(x))))
+        x = skip + self.dropout2(x)
+        if not self.pre_norm:
+            x = self.norm2(x)
+        return x
 
 
 class InterACTEncoder(nn.Module):
     def __init__(self, config: InterACTConfig):
         super().__init__()
+
         self.num_blocks = config.num_blocks
-        self.segment_wise_encoder = nn.ModuleList([ACTEncoderLayer(config) for _ in range(config.num_blocks)])
-        self.cross_segment_encoder = nn.ModuleList([ACTEncoderLayer(config) for _ in range(config.num_blocks)])
+
+        self.segment_wise_encoder = nn.ModuleList([
+            ACTEncoderLayer(config) for _ in range(config.num_blocks)
+        ])
+
+        self.cross_segment_encoder = nn.ModuleList([
+            ACTEncoderLayer(config) for _ in range(config.num_blocks)
+        ])
+
         self.arm_cls = config.num_cls_tokens_arm
         self.cam_cls = config.num_cls_tokens_image
         self.use_av_arm = config.use_av_arm
 
-    def forward(self, segments: Tensor, pos_embed: Tensor, pos_embed_cls: Tensor) -> Tensor:
-        # 输入 (B, S, D)
-        segments = einops.rearrange(segments, "b s d -> s b d")
+    def forward(self, segments, pos_embed, pos_embed_cls):
+        segments = segments.permute(1, 0, 2)
 
-        seg_arm1 = segments[: self.arm_cls + 7]
-        seg_arm2 = segments[self.arm_cls + 7 : 2 * self.arm_cls + 14]
-        pos_arm1 = pos_embed[: self.arm_cls + 7]
-        pos_arm2 = pos_embed[self.arm_cls + 7 : 2 * self.arm_cls + 14]
+        segment_arm1 = segments[:self.arm_cls + 7]
+        segment_arm2 = segments[self.arm_cls + 7:2 * self.arm_cls + 14]
+        pos_embed_arm1 = pos_embed[:self.arm_cls + 7]
+        pos_embed_arm2 = pos_embed[self.arm_cls + 7:2 * self.arm_cls + 14]
         if self.use_av_arm:
-            seg_av = segments[2 * self.arm_cls + 14 : 3 * self.arm_cls + 21]
-            seg_img = segments[3 * self.arm_cls + 21 :]
-            pos_av = pos_embed[2 * self.arm_cls + 14 : 3 * self.arm_cls + 21]
-            pos_img = pos_embed[3 * self.arm_cls + 21 :]
+            segment_av = segments[2 * self.arm_cls + 14:3 * self.arm_cls + 21]
+            segment_image = segments[3 * self.arm_cls + 21:]
+            pos_embed_av = pos_embed[2 * self.arm_cls + 14:3 * self.arm_cls + 21]
+            pos_embed_image = pos_embed[3 * self.arm_cls + 21:]
         else:
-            seg_img = segments[2 * self.arm_cls + 14 :]
-            pos_img = pos_embed[2 * self.arm_cls + 14 :]
+            segment_image = segments[2 * self.arm_cls + 14:]
+            pos_embed_image = pos_embed[2 * self.arm_cls + 14:]
 
         for i in range(self.num_blocks):
-            upd_arm1 = self.segment_wise_encoder[i](seg_arm1, pos_arm1)
-            upd_arm2 = self.segment_wise_encoder[i](seg_arm2, pos_arm2)
+            updated_segment_arm1 = self.segment_wise_encoder[i](segment_arm1, pos_embed_arm1)
+            updated_segment_arm2 = self.segment_wise_encoder[i](segment_arm2, pos_embed_arm2)
             if self.use_av_arm:
-                upd_av = self.segment_wise_encoder[i](seg_av, pos_av)
-            upd_img = self.segment_wise_encoder[i](seg_img, pos_img)
+                updated_segment_av = self.segment_wise_encoder[i](segment_av, pos_embed_av)
+            updated_segment_image = self.segment_wise_encoder[i](segment_image, pos_embed_image)
 
             if self.use_av_arm:
-                upd_cls = self.cross_segment_encoder[i](
-                    torch.cat(
-                        [
-                            upd_arm1[: self.arm_cls],
-                            upd_arm2[: self.arm_cls],
-                            upd_av[: self.arm_cls],
-                            upd_img[: self.cam_cls],
-                        ],
-                        dim=0,
-                    ),
-                    pos_embed_cls,
+                updated_cls_tokens = self.cross_segment_encoder[i](
+                    torch.cat([
+                        updated_segment_arm1[:self.arm_cls],
+                        updated_segment_arm2[:self.arm_cls],
+                        updated_segment_av[:self.arm_cls],
+                        updated_segment_image[:self.cam_cls]
+                    ], dim=0), pos_embed_cls
                 )
             else:
-                upd_cls = self.cross_segment_encoder[i](
-                    torch.cat([upd_arm1[: self.arm_cls], upd_arm2[: self.arm_cls], upd_img[: self.cam_cls]], dim=0),
-                    pos_embed_cls,
+                updated_cls_tokens = self.cross_segment_encoder[i](
+                    torch.cat([
+                        updated_segment_arm1[:self.arm_cls],
+                        updated_segment_arm2[:self.arm_cls],
+                        updated_segment_image[:self.cam_cls]
+                    ], dim=0), pos_embed_cls
                 )
 
-            seg_arm1 = torch.cat([upd_cls[: self.arm_cls], upd_arm1[self.arm_cls :]], dim=0)
-            seg_arm2 = torch.cat([upd_cls[self.arm_cls : 2 * self.arm_cls], upd_arm2[self.arm_cls :]], dim=0)
+            segment_arm1 = torch.cat([updated_cls_tokens[:self.arm_cls], updated_segment_arm1[self.arm_cls:]], dim=0)
+            segment_arm2 = torch.cat(
+                [updated_cls_tokens[self.arm_cls:2 * self.arm_cls], updated_segment_arm2[self.arm_cls:]], dim=0)
             if self.use_av_arm:
-                seg_av = torch.cat([upd_cls[2 * self.arm_cls : 3 * self.arm_cls], upd_av[self.arm_cls :]], dim=0)
-                seg_img = torch.cat([upd_cls[3 * self.arm_cls :], upd_img[self.cam_cls :]], dim=0)
+                segment_av = torch.cat(
+                    [updated_cls_tokens[2 * self.arm_cls:3 * self.arm_cls], updated_segment_av[self.arm_cls:]], dim=0)
+                segment_image = torch.cat([updated_cls_tokens[3 * self.arm_cls:], updated_segment_image[self.cam_cls:]],
+                                          dim=0)
             else:
-                seg_img = torch.cat([upd_cls[2 * self.arm_cls :], upd_img[self.cam_cls :]], dim=0)
+                segment_image = torch.cat([updated_cls_tokens[2 * self.arm_cls:], updated_segment_image[self.cam_cls:]],
+                                          dim=0)
 
         if self.use_av_arm:
-            segments = torch.cat([seg_arm1, seg_arm2, seg_av, seg_img], dim=0)
+            segments = torch.cat([segment_arm1, segment_arm2, segment_av, segment_image], dim=0)
         else:
-            segments = torch.cat([seg_arm1, seg_arm2, seg_img], dim=0)
+            segments = torch.cat([segment_arm1, segment_arm2, segment_image], dim=0)
 
-        return segments.transpose(0, 1)  # (B, S, D)
+        return segments
 
 
 class ACTDecoder(nn.Module):
@@ -463,14 +597,16 @@ class ACTDecoder(nn.Module):
         self.norm = nn.LayerNorm(config.dim_model)
 
     def forward(
-        self,
-        x: Tensor,
-        encoder_out: Tensor,
-        decoder_pos_embed: Tensor | None = None,
-        encoder_pos_embed: Tensor | None = None,
+            self,
+            x: Tensor,
+            encoder_out: Tensor,
+            decoder_pos_embed: Tensor | None = None,
+            encoder_pos_embed: Tensor | None = None,
     ) -> Tensor:
         for layer in self.layers:
-            x = layer(x, encoder_out, decoder_pos_embed=decoder_pos_embed, encoder_pos_embed=encoder_pos_embed)
+            x = layer(
+                x, encoder_out, decoder_pos_embed=decoder_pos_embed, encoder_pos_embed=encoder_pos_embed
+            )
         if self.norm is not None:
             x = self.norm(x)
         return x
@@ -501,11 +637,11 @@ class ACTDecoderLayer(nn.Module):
         return tensor if pos_embed is None else tensor + pos_embed
 
     def forward(
-        self,
-        x: Tensor,
-        encoder_out: Tensor,
-        decoder_pos_embed: Tensor | None = None,
-        encoder_pos_embed: Tensor | None = None,
+            self,
+            x: Tensor,
+            encoder_out: Tensor,
+            decoder_pos_embed: Tensor | None = None,
+            encoder_pos_embed: Tensor | None = None,
     ) -> Tensor:
         """
         Args:
@@ -605,7 +741,7 @@ class ACTSinusoidalPositionEmbedding2d(nn.Module):
         x_range = x_range / (x_range[:, :, -1:] + self._eps) * self._two_pi
 
         inverse_frequency = self._temperature ** (
-            2 * (torch.arange(self.dimension, dtype=torch.float32, device=x.device) // 2) / self.dimension
+                2 * (torch.arange(self.dimension, dtype=torch.float32, device=x.device) // 2) / self.dimension
         )
 
         x_range = x_range.unsqueeze(-1) / inverse_frequency  # (1, H, W, 1)

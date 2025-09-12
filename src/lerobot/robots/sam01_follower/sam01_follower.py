@@ -89,11 +89,9 @@ class SAM01Follower(Robot):
     def calibrate(self) -> None:
         if self.calibration:
             # Calibration file exists, ask user whether to use it or run new calibration
-            user_input = input(
-                f"Press ENTER to use provided calibration file associated with the id {self.id}, or type 'c' and press ENTER to run calibration: "
-            )
+            user_input = input(f"按‘回车键’将使用当前机械臂校准文件 {self.id}, 或按'c'键后再按‘回车键’进行重新校准: ")
             if user_input.strip().lower() != "c":
-                logger.info(f"Writing calibration file associated with the id {self.id} to the motors")
+                logger.info(f"将当前校准信息{self.id}写入舵机。")
                 self.bus.write_calibration(self.calibration)
                 return
 
@@ -114,10 +112,6 @@ class SAM01Follower(Robot):
 
         self.calibration = {}
         for motor, m in self.bus.motors.items():
-            # homing_offset = homing_offsets[motor]
-            # if motor == "gripper" and self.config.port == "left_follower":
-            #     homing_offset = -homing_offset
-
             self.calibration[motor] = MotorCalibration(
                 id=m.id,
                 drive_mode=0,

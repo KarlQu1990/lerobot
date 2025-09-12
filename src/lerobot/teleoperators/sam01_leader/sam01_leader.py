@@ -70,28 +70,23 @@ class SAM01Leader(Teleoperator):
     def calibrate(self) -> None:
         if self.calibration:
             # Calibration file exists, ask user whether to use it or run new calibration
-            user_input = input(
-                f"Press ENTER to use provided calibration file associated with the id {self.id}, or type 'c' and press ENTER to run calibration: "
-            )
+            user_input = input(f"按‘回车键’将使用当前机械臂校准文件 {self.id}, 或按'c'键后再按‘回车键’进行重新校准: ")
             if user_input.strip().lower() != "c":
-                logger.info(f"Writing calibration file associated with the id {self.id} to the motors")
+                logger.info(f"将当前校准信息{self.id}写入舵机。")
                 self.bus.write_calibration(self.calibration)
                 return
 
-        logger.info(f"\nRunning calibration of {self}")
+        logger.info(f"\n开始校准 {self}")
         self.bus.disable_torque()
         for motor in self.bus.motors:
             self.bus.write("Operating_Mode", motor, OperatingMode.POSITION.value)
 
-        input(f"Move {self} to the middle of its range of motion and press ENTER....")
+        input(f"转动 {self} 各舵机到其中间位置然后按回车确认...")
         homing_offsets = self.bus.set_half_turn_homings()
 
         full_turn_motor = "wrist_roll"
         unknown_range_motors = [motor for motor in self.bus.motors if motor != full_turn_motor]
-        print(
-            f"Move all joints except '{full_turn_motor}' sequentially through their "
-            "entire ranges of motion.\nRecording positions. Press ENTER to stop..."
-        )
+        print(f"按顺序转动除 '{full_turn_motor}' 外的舵机到其最小和最大范围，记录其位置。\n按回车结束...")
         range_mins, range_maxes = self.bus.record_ranges_of_motion(unknown_range_motors)
         range_mins[full_turn_motor] = 0
         range_maxes[full_turn_motor] = 4095
@@ -108,7 +103,7 @@ class SAM01Leader(Teleoperator):
 
         self.bus.write_calibration(self.calibration)
         self._save_calibration()
-        print(f"Calibration saved to {self.calibration_fpath}")
+        print("校准文件已保存到:", self.calibration_fpath)
 
     def configure(self) -> None:
         self.bus.disable_torque()
