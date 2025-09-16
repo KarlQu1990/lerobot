@@ -90,13 +90,11 @@ dependencies = [
     "termcolor>=2.4.0,<4.0.0",
     "tensorboard>=2.18.0",
     "pygrabber>=0.2",
-    "lxml>=5.3.1"
+    "lxml>=5.3.1",
+    "draccus@git+https://github.com/dlwh/draccus.git@e48252662a78a847f534766b506c2ac83c57c627"
 ]
 
 # Optional dependencies
-
-[tool.uv.sources]
-draccus = { git = "https://github.com/dlwh/draccus.git", rev = "e48252662a78a847f534766b506c2ac83c57c627" }
 
 [project.optional-dependencies]
 
