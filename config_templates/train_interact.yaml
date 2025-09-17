@@ -1,15 +1,14 @@
 dataset:
-  repo_id: hhws/fenjian_test_1
+  repo_id: hhws/fenjian_100
   root: C:/Users/chlai/projects/lerobot_datasets
   image_transforms:
     enable: false
   # episodes: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
 
 policy:
-  type: act
+  type: interact
   vision_backbone: resnet18
   pretrained_backbone_weights: ResNet18_Weights.IMAGENET1K_V1
-  backbone_per_camera: false
   chunk_size: 100
   kl_weight: 50.0
   optimizer_lr: 1e-5
@@ -17,10 +16,10 @@ policy:
   optimizer_weight_decay: 1e-4
   use_amp: true
   push_to_hub: false
-  use_vae: true
+  device: cuda
 
-output_dir: C:/Users/chlai/projects/lerobot_trained_models/act_sam01_fenjian_test2
-job_name: act_fenjian_test1
+output_dir: C:/Users/chlai/projects/lerobot_trained_models/interact_sam01_fenjian_100
+job_name: interact_fenjian
 batch_size: 8
 steps: 100000
 save_freq: 10000

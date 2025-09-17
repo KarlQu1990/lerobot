@@ -1,0 +1,40 @@
+robot:
+  type: sam01_follower
+  id: robot_arm_follower_left
+  port: left_follower
+  cameras:
+    high:
+      type: opencv
+      index_or_path: high
+      width: 640
+      height: 480
+      fps: 30
+#    low:
+#      type: opencv
+#      index_or_path: low
+#      width: 640
+#      height: 480
+#      fps: 30
+    wrist:
+      type: opencv
+      index_or_path: left_wrist
+      width: 640
+      height: 480
+      fps: 30
+teleop:
+  type: sam01_leader
+  id: robot_arm_leader_left
+  port: left_leader
+dataset:
+  root: C:/Users/chlai/projects/lerobot_datasets
+  repo_id: hhws/fenjian_100
+  single_task: 螺丝分拣
+  fps: 30
+  episode_time_s: 30  # 视频最大时长
+  reset_time_s: 5
+  num_episodes: 100  # 数据集数量
+  tags: ["sam","tutorial"]
+  push_to_hub: false
+
+display_data: true
+resume: true

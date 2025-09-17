@@ -1,0 +1,31 @@
+robot:
+  type: bi_sam01_follower
+  id: feng_robot_arm_follower
+  left_arm_port: left_follower
+  right_arm_port: right_follower
+  cameras:
+    high:
+      type: opencv
+      index_or_path: high
+      width: 640
+      height: 480
+      fps: 30
+    left_wrist:
+      type: opencv
+      index_or_path: left_wrist
+      width: 640
+      height: 480
+      fps: 30
+    right_wrist:
+      type: opencv
+      index_or_path: right_wrist
+      width: 640
+      height: 480
+      fps: 30
+teleop:
+  type: bi_sam01_leader
+  id: feng_robot_arm_leader
+  left_arm_port: left_leader
+  right_arm_port: right_leader
+
+display_data: true

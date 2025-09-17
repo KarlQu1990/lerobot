@@ -1,0 +1,4 @@
+teleop:
+  type: sam01_leader
+  id: robot_arm_leader_right
+  port: right_leader

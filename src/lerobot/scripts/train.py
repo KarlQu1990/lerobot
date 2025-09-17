@@ -13,16 +13,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import glob
 import logging
 import os
 import time
-import warnings
 
-# os.environ["TORCH_LOGS"] = "+dynamo"
-# os.environ["TORCHDYNAMO_VERBOSE"] = "1"
 os.environ["TORCHDYNAMO_DYNAMIC_SHAPES"] = "1"
-# os.environ["TORCHDYNAMO_REPRO_LEVEL"] = "4"
 # os.environ["TORCHDYNAMO_DISABLE"] = "1"
+
 from contextlib import nullcontext
 from pprint import pformat
 from typing import Any
@@ -61,14 +59,49 @@ from lerobot.utils.utils import (
 )
 from lerobot.utils.wandb_utils import WandBLogger
 
+
+def prepare_triton_env():
+    """准备 Windows 下编译 triton 的环境变量"""
+    # include
+    inc_dirs = glob.glob(r"C:\Program Files (x86)\Microsoft Visual Studio\*\BuildTools\VC\Tools\MSVC\*\include")
+    if len(inc_dirs) != 1:
+        raise ValueError(f"Cannot find MSVC include dir, found: {inc_dirs}")
+
+    os.environ["INCLUDE"] = inc_dirs[0] + ";" + os.environ.get("INCLUDE", "")
+
+    ucrt_inc_dirs = glob.glob(r"C:\Program Files (x86)\Windows Kits\10\Include\*\ucrt")
+    if len(ucrt_inc_dirs) != 1:
+        raise ValueError(f"Cannot find ucrt include dir, found: {ucrt_inc_dirs}")
+
+    os.environ["INCLUDE"] = ucrt_inc_dirs[0] + ";" + os.environ.get("INCLUDE", "")
+
+    shared_inc_dirs = glob.glob(r"C:\Program Files (x86)\Windows Kits\10\Include\*\shared")
+    if len(ucrt_inc_dirs) != 1:
+        raise ValueError(f"Cannot find ucrt include dir, found: {shared_inc_dirs}")
+
+    os.environ["INCLUDE"] = shared_inc_dirs[0] + ";" + os.environ.get("INCLUDE", "")
+
+    # lib
+    lib_dirs = glob.glob(r"C:\Program Files (x86)\Microsoft Visual Studio\*\BuildTools\VC\Tools\MSVC\*\lib\x64")
+    if len(lib_dirs) != 1:
+        raise ValueError(f"Cannot find MSVC library dir, found: {lib_dirs}")
+
+    os.environ["LIB"] = lib_dirs[0] + ";" + os.environ.get("LIB", "")
+
+    ucrt_lib_dirs = glob.glob(r"C:\Program Files (x86)\Windows Kits\10\Lib\*\ucrt\x64")
+    if len(ucrt_lib_dirs) != 1:
+        raise ValueError(f"Cannot find ucrt include dir, found: {ucrt_lib_dirs}")
+
+    os.environ["LIB"] = ucrt_inc_dirs[0] + ";" + os.environ.get("LIB", "")
+
+
+prepare_triton_env()
+
 dataloader: torch.utils.data.DataLoader = None
 
 torch._dynamo.config.suppress_errors = True
 torch._dynamo.config.reorderable_logging_functions.add(print)
 torch._inductor.config.fallback_random = True
-
-
-warnings.filterwarnings("ignore", module="torchvision")
 
 
 def terminate_handler(signum, frame):

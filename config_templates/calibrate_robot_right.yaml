@@ -1,0 +1,5 @@
+robot:
+  type: sam01_follower
+  id: robot_arm_follower_right
+  port: right_follower
+  cameras: {}

@@ -1,0 +1,23 @@
+robot:
+  type: sam01_follower
+  id: robot_arm_follower_left
+  port: left_follower
+  cameras:
+    high:
+      type: opencv
+      index_or_path: high
+      width: 640
+      height: 480
+      fps: 30
+    wrist:
+      type: opencv
+      index_or_path: left_wrist
+      width: 640
+      height: 480
+      fps: 30
+teleop:
+  type: sam01_leader
+  id: robot_arm_leader_left
+  port: left_leader
+
+display_data: true
