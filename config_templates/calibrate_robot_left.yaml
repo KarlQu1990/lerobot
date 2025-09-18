@@ -3,3 +3,5 @@ robot:
   id: robot_arm_follower_left  # 机械臂ID, 可修改，与校准文件名称相关
   port: left_follower  # 左侧从臂COM口名称
   cameras: {}  # 摄像头参数，为空表示校准时不考虑摄像头
+  # calibration_dir: C:/calibration_dir   # 校准文件目录
+  # calibration_dir: C:/calibration_dir   # 校准文件目录

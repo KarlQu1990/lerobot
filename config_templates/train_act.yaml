@@ -17,7 +17,7 @@ policy:
   optimizer_weight_decay: 1e-4   # 权重衰减
   use_amp: true   # 是否使用混合精度训练
   push_to_hub: false   # 是否推送到huggingface
-  use_vae: true  是否使用VAE编码器
+  use_vae: true  # 是否使用VAE编码器
 
 output_dir: C:/Users/chlai/projects/lerobot_trained_models/act_sam01_fenjian_test2  # 输出文件夹
 job_name: act_fenjian_test1   # 任务名称
