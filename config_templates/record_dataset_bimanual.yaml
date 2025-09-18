@@ -3,7 +3,7 @@ robot:
   id: robot_arm_follower
   left_arm_port: left_follower
   right_arm_port: right_follower
-  # calibration_dir: C:/calibration_dir   # 校准文件目录
+  calibration_dir: .cache/calibration/calib1   # 校准文件目录
   cameras:
     high:
       type: opencv

@@ -3,4 +3,4 @@ teleop:
   id: robot_arm_leader   # 机械臂ID, 可修改，与校准文件名称相关
   left_arm_port: left_leader  # 左侧主臂COM口名称
   right_arm_port: right_leader  # 右侧主臂COM口名称
-  # calibration_dir: C:/calibration_dir   # 校准文件目录
+  calibration_dir: .cache/calibration/calib1   # 校准文件目录
