@@ -35,7 +35,11 @@ policy:
   n_action_steps: 100
   device: cuda
 
-task:
-inference_time_s: 300
-fps: 30
-pretrained_name_or_path: C:/Users/chlai/projects/lerobot_trained_models/act_sam01_fenjian_100_no_vae/checkpoints/last/pretrained_model
+  type: act  # 策略类型
+  n_action_steps: 100  # act参数，单次预测执行的步数
+  device: cuda
+
+task:  # 任务描述
+inference_time_s: 300  # 推理时长
+fps: 30  # 帧率
+pretrained_name_or_path: C:/Users/chlai/projects/lerobot_trained_models/act_sam01_fenjian_100/checkpoints/last/pretrained_model

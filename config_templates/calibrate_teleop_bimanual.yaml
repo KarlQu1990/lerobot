@@ -1,5 +1,5 @@
 teleop:
-  type: bi_sam01_leader
-  id: robot_arm_leader
-  left_arm_port: left_leader
-  right_arm_port: right_leader
+  type: bi_sam01_leader   # 机械臂类型，无需修改
+  id: robot_arm_leader   # 机械臂ID, 可修改，与校准文件名称相关
+  left_arm_port: left_leader  # 左侧主臂COM口名称
+  right_arm_port: right_leader  # 右侧主臂COM口名称

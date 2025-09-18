@@ -2,28 +2,28 @@ dataset:
   repo_id: hhws/fenjian_test_1
   root: C:/Users/chlai/projects/lerobot_datasets
   image_transforms:
-    enable: false
-  # episodes: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+    enable: false   # 是否开启图像增强
+  # episodes: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]  # 训练的视频索引序列
 
 policy:
-  type: act
-  vision_backbone: resnet18
-  pretrained_backbone_weights: ResNet18_Weights.IMAGENET1K_V1
-  backbone_per_camera: false
-  chunk_size: 100
-  kl_weight: 50.0
-  optimizer_lr: 1e-5
-  optimizer_lr_backbone: 1e-5
-  optimizer_weight_decay: 1e-4
-  use_amp: true
-  push_to_hub: false
-  use_vae: true
+  type: act  # 策略类型
+  vision_backbone: resnet18   # 视觉骨干网络名称
+  pretrained_backbone_weights: ResNet18_Weights.IMAGENET1K_V1  # 预训练权重名称
+  backbone_per_camera: false  # 是否每个摄像头使用不同骨干网络
+  chunk_size: 100  # 行为块大小
+  kl_weight: 50.0  # KL散度损失权重系数
+  optimizer_lr: 1e-5   # 学习率
+  optimizer_lr_backbone: 1e-5   # 骨干网络学习率
+  optimizer_weight_decay: 1e-4   # 权重衰减
+  use_amp: true   # 是否使用混合精度训练
+  push_to_hub: false   # 是否推送到huggingface
+  use_vae: true  是否使用VAE编码器
 
-output_dir: C:/Users/chlai/projects/lerobot_trained_models/act_sam01_fenjian_test2
-job_name: act_fenjian_test1
-batch_size: 8
-steps: 100000
-save_freq: 10000
-num_workers: 6
-resume: false
+output_dir: C:/Users/chlai/projects/lerobot_trained_models/act_sam01_fenjian_test2  # 输出文件夹
+job_name: act_fenjian_test1   # 任务名称
+batch_size: 8  # 批次大小
+steps: 80000   # 总步数
+save_freq: 10000  # 保存间隔
+num_workers: 6  # 数据加载线程数
+resume: false   # 是否继续训练
 

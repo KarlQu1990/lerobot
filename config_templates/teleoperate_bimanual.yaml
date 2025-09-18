@@ -24,7 +24,7 @@ robot:
       fps: 30
 teleop:
   type: bi_sam01_leader
-  id: feng_robot_arm_leader
+  id: robot_arm_leader
   left_arm_port: left_leader
   right_arm_port: right_leader
 

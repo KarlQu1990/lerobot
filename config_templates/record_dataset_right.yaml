@@ -26,15 +26,15 @@ teleop:
   id: robot_arm_leader_right
   port: right_leader
 dataset:
-  root: C:/Users/chlai/projects/lerobot_datasets
-  repo_id: hhws/fenjian_100
-  single_task: 螺丝分拣
-  fps: 30
-  episode_time_s: 30  # 视频最大时长
-  reset_time_s: 5
-  num_episodes: 100  # 数据集数量
-  tags: ["sam","tutorial"]
-  push_to_hub: false
+  root: C:/Users/chlai/projects/lerobot_datasets  # 数据集根目录
+  repo_id: hhws/fenjian_test_1    # 数据集名称
+  single_task: 拆垛    # 数据集描述
+  fps: 30   # 帧率
+  episode_time_s: 60  # 视频最大时长
+  reset_time_s: 10   # 重置时间
+  num_episodes: 50  # 数据集数量
+  tags: ["sam","tutorial"]  # 标签
+  push_to_hub: false   # 是否推送到huggingface
 
-display_data: true
-resume: true
+display_data: true  # 是否显示数据
+resume: false  # 是否继续录制

@@ -1,6 +1,6 @@
 robot:
-  type: bi_sam01_follower
-  id: robot_arm_follower
-  left_arm_port: left_follower
-  right_arm_port: right_follower
-  cameras: {}
+  type: bi_sam01_follower   # 机械臂类型，无需修改
+  id: robot_arm_follower   # 机械臂ID, 可修改，与校准文件名称相关
+  left_arm_port: left_follower   # 左侧从臂COM口名称
+  right_arm_port: right_follower  # 右侧从臂COM口名称
+  cameras: {}   # 摄像头参数，为空表示校准时不考虑摄像头
