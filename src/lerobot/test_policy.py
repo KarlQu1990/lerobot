@@ -1,9 +1,9 @@
 import logging
-import sys
 import time
 from dataclasses import asdict, dataclass
 from pprint import pformat
 
+import rerun as rr
 import torch
 import tqdm
 
@@ -102,47 +102,53 @@ def test(cfg: TestPolicyConfig):
     timestamp = 0
     control_time_s = cfg.inference_time_s
 
-    with tqdm.tqdm(total=control_time_s, desc="推理进度") as pbar:
-        while timestamp < control_time_s:
-            # if events.get("exit_early", False):
-            #     events["exit_early"] = False
-            #     break
+    try:
+        with tqdm.tqdm(total=control_time_s, desc="推理进度") as pbar:
+            while timestamp < control_time_s:
+                # if events.get("exit_early", False):
+                #     events["exit_early"] = False
+                #     break
 
-            start_loop_t = time.perf_counter()
+                start_loop_t = time.perf_counter()
 
-            observation = robot.get_observation()
+                observation = robot.get_observation()
 
-            observation_frame = build_dataset_frame(obs_features_only, observation, prefix="observation")
+                observation_frame = build_dataset_frame(obs_features_only, observation, prefix="observation")
 
-            with torch.no_grad():
-                action_values = predict_action(
-                    observation_frame,
-                    policy,
-                    device,
-                    policy.config.use_amp,
-                    task=cfg.task,
-                    robot_type=robot.robot_type,
-                )
+                with torch.no_grad():
+                    action_values = predict_action(
+                        observation_frame,
+                        policy,
+                        device,
+                        policy.config.use_amp,
+                        task=cfg.task,
+                        robot_type=robot.robot_type,
+                    )
 
-            action = {key: action_values[i].item() for i, key in enumerate(robot.action_features)}
+                action = {key: action_values[i].item() for i, key in enumerate(robot.action_features)}
 
-            sent_action = robot.send_action(action)
+                sent_action = robot.send_action(action)
 
-            if cfg.display_data:
-                log_rerun_data(observation, sent_action)
+                if cfg.display_data:
+                    log_rerun_data(observation, sent_action)
 
-            dt_s = time.perf_counter() - start_loop_t
-            busy_wait(1.0 / cfg.fps - dt_s)
+                dt_s = time.perf_counter() - start_loop_t
+                busy_wait(1.0 / cfg.fps - dt_s)
 
-            timestamp = time.perf_counter() - start_t
-            if int(timestamp) > timestamp_int:
-                timestamp_int = int(timestamp)
-                pbar.update(1)
+                timestamp = time.perf_counter() - start_t
+                if int(timestamp) > timestamp_int:
+                    timestamp_int = int(timestamp)
+                    pbar.update(1)
 
-        if timestamp_int < control_time_s:
-            pbar.update(control_time_s - timestamp_int)
+            if timestamp_int < control_time_s:
+                pbar.update(control_time_s - timestamp_int)
 
-    robot.disconnect()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        if cfg.display_data:
+            rr.rerun_shutdown()
+        robot.disconnect()
 
 
 def main():
@@ -150,10 +156,4 @@ def main():
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        import rerun as rr
-
-        rr.rerun_shutdown()
-        sys.exit(0)
+    main()
