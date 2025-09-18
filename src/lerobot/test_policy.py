@@ -1,4 +1,5 @@
 import logging
+import math
 import time
 from dataclasses import asdict, dataclass
 from pprint import pformat
@@ -137,8 +138,9 @@ def test(cfg: TestPolicyConfig):
 
                 timestamp = time.perf_counter() - start_t
                 if int(timestamp) > timestamp_int:
-                    timestamp_int = int(timestamp)
-                    pbar.update(1)
+                    last_timestamp_int = timestamp_int
+                    timestamp_int = math.ceil(timestamp)
+                    pbar.update(timestamp_int - last_timestamp_int)
 
             if timestamp_int < control_time_s:
                 pbar.update(control_time_s - timestamp_int)
