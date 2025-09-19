@@ -5,3 +5,4 @@ robot:
   right_arm_port: right_follower  # 右侧从臂COM口名称
   cameras: {}   # 摄像头参数，为空表示校准时不考虑摄像头
   calibration_dir: .cache/calibration/calib1   # 校准文件目录
+
