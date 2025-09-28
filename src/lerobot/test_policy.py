@@ -44,6 +44,7 @@ def init_keyboard_listener():
     events["to_init_pos"] = False
     events["pause"] = False
     events["resume"] = False
+    events["exit_early"] = False
 
     # Only import pynput if not in a headless environment
     from pynput import keyboard
@@ -59,6 +60,9 @@ def init_keyboard_listener():
             elif key == keyboard.Key.enter:
                 print("恢复运动...")
                 events["resume"] = True
+            elif key == keyboard.Key.esc:
+                print("提前退出...")
+                events["exit_early"] = True
         except Exception as e:
             print(f"Error handling key press: {e}")
 
@@ -106,9 +110,8 @@ def test(cfg: TestPolicyConfig):
     try:
         with tqdm.tqdm(total=control_time_s, desc="推理进度") as pbar:
             while timestamp < control_time_s:
-                # if events.get("exit_early", False):
-                #     events["exit_early"] = False
-                #     break
+                if events.get("exit_early", False):
+                    break
 
                 start_loop_t = time.perf_counter()
 
@@ -151,6 +154,7 @@ def test(cfg: TestPolicyConfig):
         if cfg.display_data:
             rr.rerun_shutdown()
         robot.disconnect()
+        return "运行结束"
 
 
 def main():
