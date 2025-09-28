@@ -29,10 +29,6 @@ def make_robot_from_config(config: RobotConfig) -> Robot:
         from .so100_follower import SO100Follower
 
         return SO100Follower(config)
-    elif config.type == "so100_follower_end_effector":
-        from .so100_follower import SO100FollowerEndEffector
-
-        return SO100FollowerEndEffector(config)
     elif config.type == "so101_follower":
         from .so101_follower import SO101Follower
 
@@ -69,6 +65,10 @@ def make_robot_from_config(config: RobotConfig) -> Robot:
         from .bi_sam01_follower import BiSAM01Follower
 
         return BiSAM01Follower(config)
+    elif config.type == "reachy2":
+        from .reachy2 import Reachy2Robot
+
+        return Reachy2Robot(config)
     elif config.type == "mock_robot":
         from tests.mocks.mock_robot import MockRobot
 
@@ -82,8 +82,9 @@ def make_robot_from_config(config: RobotConfig) -> Robot:
         raise ValueError(config.type)
 
 
+# TODO(pepijn): Move to pipeline step to make sure we don't have to do this in the robot code and send action to robot is clean for use in dataset
 def ensure_safe_goal_position(
-    goal_present_pos: dict[str, tuple[float, float]], max_relative_target: float | dict[float]
+    goal_present_pos: dict[str, tuple[float, float]], max_relative_target: float | dict[str, float]
 ) -> dict[str, float]:
     """Caps relative action target magnitude for safety."""
 
@@ -113,8 +114,7 @@ def ensure_safe_goal_position(
 
     if warnings_dict:
         logging.warning(
-            "Relative goal position magnitude had to be clamped to be safe.\n"
-            f"{pformat(warnings_dict, indent=4)}"
+            f"Relative goal position magnitude had to be clamped to be safe.\n{pformat(warnings_dict, indent=4)}"
         )
 
     return safe_goal_positions

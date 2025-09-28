@@ -176,3 +176,7 @@ outputs/
 configs/
 run/
 libs/usbdeview/USBDeview.cfg
+*.stl
+*.urdf
+*.xml
+*.part
