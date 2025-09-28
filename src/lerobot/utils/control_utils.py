@@ -217,12 +217,7 @@ def sanity_check_dataset_name(repo_id, policy_cfg):
         )
 
 
-<<<<<<< HEAD
 def sanity_check_dataset_robot_compatibility(dataset: LeRobotDataset, robot: Robot, fps: int, features: dict) -> None:
-=======
-def sanity_check_dataset_robot_compatibility(
-    dataset: LeRobotDataset, robot: Robot, fps: int, features: dict
-) -> None:
     """
     Checks if a dataset's metadata is compatible with the current robot and recording setup.
 
@@ -238,7 +233,6 @@ def sanity_check_dataset_robot_compatibility(
     Raises:
         ValueError: If any of the checked metadata fields do not match.
     """
->>>>>>> main-origin
     fields = [
         ("robot_type", dataset.meta.robot_type, robot.robot_type),
         ("fps", dataset.fps, fps),

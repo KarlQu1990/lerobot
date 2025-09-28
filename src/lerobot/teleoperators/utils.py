@@ -81,16 +81,13 @@ def make_teleoperator_from_config(config: TeleoperatorConfig) -> Teleoperator:
         from .bi_so100_leader import BiSO100Leader
 
         return BiSO100Leader(config)
-<<<<<<< HEAD
     elif config.type == "bi_sam01_leader":
         from .bi_sam01_leader import BiSAM01Leader
 
         return BiSAM01Leader(config)
-=======
     elif config.type == "reachy2_teleoperator":
         from .reachy2_teleoperator import Reachy2Teleoperator
 
         return Reachy2Teleoperator(config)
->>>>>>> main-origin
     else:
         raise ValueError(config.type)
