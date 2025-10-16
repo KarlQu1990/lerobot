@@ -13,15 +13,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import glob
 import logging
 import os
 import time
+import warnings
 
 # os.environ["TORCH_LOGS"] = "+dynamo"
 # os.environ["TORCHDYNAMO_VERBOSE"] = "1"
 os.environ["TORCHDYNAMO_DYNAMIC_SHAPES"] = "1"
-# os.environ["ORCHDYNAMO_REPRO_LEVEL"] = "4"
+# os.environ["TORCHDYNAMO_REPRO_LEVEL"] = "4"
+# os.environ["TORCHDYNAMO_DISABLE"] = "1"
 from contextlib import nullcontext
 from pprint import pformat
 from typing import Any
@@ -31,34 +32,34 @@ from termcolor import colored
 from torch.amp import GradScaler
 from torch.optim import Optimizer
 
-from lerobot.common.datasets.factory import make_dataset
-from lerobot.common.datasets.sampler import EpisodeAwareSampler
-from lerobot.common.datasets.utils import cycle
-from lerobot.common.envs.factory import make_env
-from lerobot.common.optim.factory import make_optimizer_and_scheduler
-from lerobot.common.policies.factory import make_policy
-from lerobot.common.policies.pretrained import PreTrainedPolicy
-from lerobot.common.policies.utils import get_device_from_parameters
-from lerobot.common.utils.logging_utils import AverageMeter, MetricsTracker
-from lerobot.common.utils.random_utils import set_seed
-from lerobot.common.utils.tensorboard_utils import TensorboardLogger
-from lerobot.common.utils.train_utils import (
+from lerobot.configs import parser
+from lerobot.configs.train import TrainPipelineConfig
+from lerobot.datasets.factory import make_dataset
+from lerobot.datasets.sampler import EpisodeAwareSampler
+from lerobot.datasets.utils import cycle
+from lerobot.envs.factory import make_env
+from lerobot.optim.factory import make_optimizer_and_scheduler
+from lerobot.policies.factory import make_policy
+from lerobot.policies.pretrained import PreTrainedPolicy
+from lerobot.policies.utils import get_device_from_parameters
+from lerobot.scripts.eval import eval_policy
+from lerobot.utils.logging_utils import AverageMeter, MetricsTracker
+from lerobot.utils.random_utils import set_seed
+from lerobot.utils.tensorboard_utils import TensorboardLogger
+from lerobot.utils.train_utils import (
     get_step_checkpoint_dir,
     get_step_identifier,
     load_training_state,
     save_checkpoint,
     update_last_checkpoint,
 )
-from lerobot.common.utils.utils import (
+from lerobot.utils.utils import (
     format_big_number,
     get_safe_torch_device,
     has_method,
     init_logging,
 )
-from lerobot.common.utils.wandb_utils import WandBLogger
-from lerobot.configs import parser
-from lerobot.configs.train import TrainPipelineConfig
-from lerobot.scripts.eval import eval_policy
+from lerobot.utils.wandb_utils import WandBLogger
 
 dataloader: torch.utils.data.DataLoader = None
 
@@ -67,42 +68,7 @@ torch._dynamo.config.reorderable_logging_functions.add(print)
 torch._inductor.config.fallback_random = True
 
 
-def prepare_triton_env():
-    """准备 Windows 下编译 triton 的环境变量"""
-    # include
-    inc_dirs = glob.glob(r"C:\Program Files (x86)\Microsoft Visual Studio\*\BuildTools\VC\Tools\MSVC\*\include")
-    if len(inc_dirs) != 1:
-        raise ValueError(f"Cannot find MSVC include dir, found: {inc_dirs}")
-
-    os.environ["INCLUDE"] = inc_dirs[0] + ";" + os.environ.get("INCLUDE", "")
-
-    ucrt_inc_dirs = glob.glob(r"C:\Program Files (x86)\Windows Kits\10\Include\*\ucrt")
-    if len(ucrt_inc_dirs) != 1:
-        raise ValueError(f"Cannot find ucrt include dir, found: {ucrt_inc_dirs}")
-
-    os.environ["INCLUDE"] = ucrt_inc_dirs[0] + ";" + os.environ.get("INCLUDE", "")
-
-    shared_inc_dirs = glob.glob(r"C:\Program Files (x86)\Windows Kits\10\Include\*\shared")
-    if len(ucrt_inc_dirs) != 1:
-        raise ValueError(f"Cannot find ucrt include dir, found: {shared_inc_dirs}")
-
-    os.environ["INCLUDE"] = shared_inc_dirs[0] + ";" + os.environ.get("INCLUDE", "")
-
-    # lib
-    lib_dirs = glob.glob(r"C:\Program Files (x86)\Microsoft Visual Studio\*\BuildTools\VC\Tools\MSVC\*\lib\x64")
-    if len(lib_dirs) != 1:
-        raise ValueError(f"Cannot find MSVC library dir, found: {lib_dirs}")
-
-    os.environ["LIB"] = lib_dirs[0] + ";" + os.environ.get("LIB", "")
-
-    ucrt_lib_dirs = glob.glob(r"C:\Program Files (x86)\Windows Kits\10\Lib\*\ucrt\x64")
-    if len(ucrt_lib_dirs) != 1:
-        raise ValueError(f"Cannot find ucrt include dir, found: {ucrt_lib_dirs}")
-
-    os.environ["LIB"] = ucrt_inc_dirs[0] + ";" + os.environ.get("LIB", "")
-
-
-prepare_triton_env()
+warnings.filterwarnings("ignore", module="torchvision")
 
 
 def terminate_handler(signum, frame):
@@ -261,7 +227,7 @@ def train(cfg: TrainPipelineConfig):
         batch_size=cfg.batch_size,
         shuffle=shuffle,
         sampler=sampler,
-        pin_memory=device.type != "cpu",
+        pin_memory=device.type == "cuda",
         drop_last=False,
     )
     dl_iter = cycle(dataloader)
@@ -294,7 +260,7 @@ def train(cfg: TrainPipelineConfig):
 
         for key in batch:
             if isinstance(batch[key], torch.Tensor):
-                batch[key] = batch[key].to(device, non_blocking=True)
+                batch[key] = batch[key].to(device, non_blocking=device.type == "cuda")
 
         train_tracker, output_dict = update_policy(
             train_tracker,
@@ -387,7 +353,14 @@ def train(cfg: TrainPipelineConfig):
         f"End of training, total time cost: {total_time_cost:.2f} hours, valid time cost(no warmup): {valid_time_cost:.2f} hours"
     )
 
+    if cfg.policy.push_to_hub:
+        policy.push_model_to_hub(cfg)
 
-if __name__ == "__main__":
+
+def main():
     init_logging()
     train()
+
+
+if __name__ == "__main__":
+    main()
