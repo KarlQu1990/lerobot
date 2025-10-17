@@ -21,10 +21,10 @@ from typing import Any
 import numpy as np
 
 from lerobot.cameras import make_cameras_from_configs
-from lerobot.errors import DeviceNotConnectedError
 from lerobot.model.kinematics import RobotKinematics
 from lerobot.motors import Motor, MotorNormMode
 from lerobot.motors.feetech import FeetechMotorsBus
+from lerobot.utils.errors import DeviceNotConnectedError
 
 from . import SAM01Follower
 from .config_sam01_follower import SAM01FollowerEndEffectorConfig
@@ -122,7 +122,9 @@ class SAM01FollowerEndEffector(SAM01Follower):
                     action["gripper"] = [1.0]
                 action = np.append(delta_ee, action["gripper"])
             else:
-                logger.warning(f"Expected action keys 'delta_x', 'delta_y', 'delta_z', got {list(action.keys())}")
+                logger.warning(
+                    f"Expected action keys 'delta_x', 'delta_y', 'delta_z', got {list(action.keys())}"
+                )
                 action = np.zeros(4, dtype=np.float32)
 
         if self.current_joint_pos is None:
@@ -148,10 +150,14 @@ class SAM01FollowerEndEffector(SAM01Follower):
             )
 
         # Compute inverse kinematics to get joint positions
-        target_joint_values_in_degrees = self.kinematics.inverse_kinematics(self.current_joint_pos, desired_ee_pos)
+        target_joint_values_in_degrees = self.kinematics.inverse_kinematics(
+            self.current_joint_pos, desired_ee_pos
+        )
         print(np.abs(self.current_joint_pos - target_joint_values_in_degrees).sum())
         # Create joint space action dictionary
-        joint_action = {f"{key}.pos": target_joint_values_in_degrees[i] for i, key in enumerate(self.bus.motors.keys())}
+        joint_action = {
+            f"{key}.pos": target_joint_values_in_degrees[i] for i, key in enumerate(self.bus.motors.keys())
+        }
 
         # Handle gripper separately if included in action
         # Gripper delta action is in the range 0 - 2,

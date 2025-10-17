@@ -4,12 +4,12 @@ from functools import cached_property
 from typing import Any
 
 from lerobot.cameras.utils import make_cameras_from_configs
-from lerobot.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
 from lerobot.motors import Motor, MotorCalibration, MotorNormMode
 from lerobot.motors.feetech import (
     FeetechMotorsBus,
     OperatingMode,
 )
+from lerobot.utils.errors import DeviceAlreadyConnectedError, DeviceNotConnectedError
 
 from ..robot import Robot
 from ..utils import ensure_safe_goal_position
@@ -47,7 +47,9 @@ class SAM01Follower(Robot):
 
     @property
     def _cameras_ft(self) -> dict[str, tuple]:
-        return {cam: (self.config.cameras[cam].height, self.config.cameras[cam].width, 3) for cam in self.cameras}
+        return {
+            cam: (self.config.cameras[cam].height, self.config.cameras[cam].width, 3) for cam in self.cameras
+        }
 
     @cached_property
     def observation_features(self) -> dict[str, type | tuple]:
@@ -89,7 +91,9 @@ class SAM01Follower(Robot):
     def calibrate(self) -> None:
         if self.calibration:
             # Calibration file exists, ask user whether to use it or run new calibration
-            user_input = input(f"按‘回车键’将使用当前机械臂校准文件 {self.id}, 或按'c'键后再按‘回车键’进行重新校准: ")
+            user_input = input(
+                f"按‘回车键’将使用当前机械臂校准文件 {self.id}, 或按'c'键后再按‘回车键’进行重新校准: "
+            )
             if user_input.strip().lower() != "c":
                 logger.info(f"将当前校准信息{self.id}写入舵机。")
                 self.bus.write_calibration(self.calibration)
