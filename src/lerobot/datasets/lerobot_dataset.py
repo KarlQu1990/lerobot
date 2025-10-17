@@ -90,7 +90,7 @@ class LeRobotDatasetMetadata:
     ):
         self.repo_id = repo_id
         self.revision = revision if revision else CODEBASE_VERSION
-        self.root = Path(root) if root is not None else HF_LEROBOT_HOME / repo_id
+        self.root = Path(root) / repo_id if root is not None else HF_LEROBOT_HOME / repo_id
         self.writer = None
         self.latest_episode = None
         self.metadata_buffer: list[dict] = []
@@ -132,9 +132,7 @@ class LeRobotDatasetMetadata:
         if not self.writer:
             path = Path(self.root / DEFAULT_EPISODES_PATH.format(chunk_index=chunk_idx, file_index=file_idx))
             path.parent.mkdir(parents=True, exist_ok=True)
-            self.writer = pq.ParquetWriter(
-                path, schema=table.schema, compression="snappy", use_dictionary=True
-            )
+            self.writer = pq.ParquetWriter(path, schema=table.schema, compression="snappy", use_dictionary=True)
 
         self.writer.write_table(table)
 
@@ -508,7 +506,7 @@ class LeRobotDatasetMetadata:
         """Creates metadata for a LeRobotDataset."""
         obj = cls.__new__(cls)
         obj.repo_id = repo_id
-        obj.root = Path(root) if root is not None else HF_LEROBOT_HOME / repo_id
+        obj.root = Path(root) / repo_id if root is not None else HF_LEROBOT_HOME / repo_id
 
         obj.root.mkdir(parents=True, exist_ok=False)
 
@@ -668,7 +666,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
         """
         super().__init__()
         self.repo_id = repo_id
-        self.root = Path(root) if root else HF_LEROBOT_HOME / repo_id
+        self.root = Path(root) / repo_id if root else HF_LEROBOT_HOME / repo_id
         self.image_transforms = image_transforms
         self.delta_timestamps = delta_timestamps
         self.episodes = episodes
@@ -688,7 +686,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
         self.root.mkdir(exist_ok=True, parents=True)
 
         # Load metadata
-        self.meta = LeRobotDatasetMetadata(self.repo_id, self.root, self.revision, force_cache_sync=force_cache_sync)
+        self.meta = LeRobotDatasetMetadata(self.repo_id, root, self.revision, force_cache_sync=force_cache_sync)
 
         # Track dataset state for efficient incremental writing
         self._lazy_loading = False
@@ -1242,9 +1240,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
             latest_size_in_mb = get_file_size_in_mb(latest_path)
 
             frames_in_current_file = global_frame_index - latest_ep["dataset_from_index"]
-            av_size_per_frame = (
-                latest_size_in_mb / frames_in_current_file if frames_in_current_file > 0 else 0
-            )
+            av_size_per_frame = latest_size_in_mb / frames_in_current_file if frames_in_current_file > 0 else 0
 
             # Determine if a new parquet file is needed
             if (
@@ -1265,9 +1261,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
 
         table = ep_dataset.with_format("arrow")[:]
         if not self.writer:
-            self.writer = pq.ParquetWriter(
-                path, schema=table.schema, compression="snappy", use_dictionary=True
-            )
+            self.writer = pq.ParquetWriter(path, schema=table.schema, compression="snappy", use_dictionary=True)
         self.writer.write_table(table)
 
         metadata = {
@@ -1306,9 +1300,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
                 # Update the indices to avoid overwriting the latest episode
                 old_chunk_idx = self.meta.episodes[-1][f"videos/{video_key}/chunk_index"]
                 old_file_idx = self.meta.episodes[-1][f"videos/{video_key}/file_index"]
-                chunk_idx, file_idx = update_chunk_file_indices(
-                    old_chunk_idx, old_file_idx, self.meta.chunks_size
-                )
+                chunk_idx, file_idx = update_chunk_file_indices(old_chunk_idx, old_file_idx, self.meta.chunks_size)
             latest_duration_in_s = 0.0
             new_path = self.root / self.meta.video_path.format(
                 video_key=video_key, chunk_index=chunk_idx, file_index=file_idx

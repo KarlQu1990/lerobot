@@ -250,9 +250,7 @@ def record_loop(
     robot_action_processor: RobotProcessorPipeline[
         tuple[RobotAction, RobotObservation], RobotAction
     ],  # runs before robot
-    robot_observation_processor: RobotProcessorPipeline[
-        RobotObservation, RobotObservation
-    ],  # runs after robot
+    robot_observation_processor: RobotProcessorPipeline[RobotObservation, RobotObservation],  # runs after robot
     dataset: LeRobotDataset | None = None,
     teleop: Teleoperator | list[Teleoperator] | None = None,
     policy: PreTrainedPolicy | None = None,
@@ -458,9 +456,6 @@ def record(cfg: RecordConfig) -> LeRobotDataset:
         teleop.connect()
 
     listener, events = init_keyboard_listener()
-
-    # 清除图片缓存
-    dataset.clear_image_cache()
 
     with VideoEncodingManager(dataset):
         recorded_episodes = dataset.num_episodes
