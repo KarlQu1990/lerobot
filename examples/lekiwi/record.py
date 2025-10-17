@@ -128,4 +128,6 @@ robot.disconnect()
 leader_arm.disconnect()
 keyboard.disconnect()
 listener.stop()
+
+dataset.finalize()
 dataset.push_to_hub()

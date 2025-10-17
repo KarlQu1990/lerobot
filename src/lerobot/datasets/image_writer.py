@@ -18,7 +18,6 @@ import queue
 import threading
 from pathlib import Path
 
-import cv2
 import numpy as np
 import PIL.Image
 import torch
@@ -49,7 +48,9 @@ def image_array_to_pil_image(image_array: np.ndarray, range_check: bool = True) 
         image_array = image_array.transpose(1, 2, 0)
 
     elif image_array.shape[-1] != 3:
-        raise NotImplementedError(f"The image has {image_array.shape[-1]} channels, but 3 is required for now.")
+        raise NotImplementedError(
+            f"The image has {image_array.shape[-1]} channels, but 3 is required for now."
+        )
 
     if image_array.dtype != np.uint8:
         if range_check:
@@ -67,36 +68,30 @@ def image_array_to_pil_image(image_array: np.ndarray, range_check: bool = True) 
     return PIL.Image.fromarray(image_array)
 
 
-def image_array_to_cv_image(image_array: np.ndarray, range_check: bool = True) -> PIL.Image.Image:
-    # TODO(aliberts): handle 1 channel and 4 for depth images
-    if image_array.ndim != 3:
-        raise ValueError(f"The array has {image_array.ndim} dimensions, but 3 is expected for an image.")
+def write_image(image: np.ndarray | PIL.Image.Image, fpath: Path, compress_level: int = 1):
+    """
+    Saves a NumPy array or PIL Image to a file.
 
-    if image_array.shape[0] == 3:
-        # Transpose from pytorch convention (C, H, W) to (H, W, C)
-        image_array = image_array.transpose(1, 2, 0)
+    This function handles both NumPy arrays and PIL Image objects, converting
+    the former to a PIL Image before saving. It includes error handling for
+    the save operation.
 
-    elif image_array.shape[-1] != 3:
-        raise NotImplementedError(f"The image has {image_array.shape[-1]} channels, but 3 is required for now.")
+    Args:
+        image (np.ndarray | PIL.Image.Image): The image data to save.
+        fpath (Path): The destination file path for the image.
+        compress_level (int, optional): The compression level for the saved
+            image, as used by PIL.Image.save(). Defaults to 1.
+            Refer to: https://github.com/huggingface/lerobot/pull/2135
+            for more details on the default value rationale.
 
-    if image_array.dtype != np.uint8:
-        if range_check:
-            max_ = image_array.max().item()
-            min_ = image_array.min().item()
-            if max_ > 1.0 or min_ < 0.0:
-                raise ValueError(
-                    "The image data type is float, which requires values in the range [0.0, 1.0]. "
-                    f"However, the provided range is [{min_}, {max_}]. Please adjust the range or "
-                    "provide a uint8 image with values in the range [0, 255]."
-                )
+    Raises:
+        TypeError: If the input 'image' is not a NumPy array or a
+            PIL.Image.Image object.
 
-        image_array = (image_array * 255).astype(np.uint8)
-        image_array = cv2.cvtColor(image_array, cv2.COLOR_RGB2BGR)
-
-    return image_array
-
-
-def write_image(image: np.ndarray | PIL.Image.Image, fpath: Path):
+    Side Effects:
+        Prints an error message to the console if the image writing process
+        fails for any reason.
+    """
     try:
         if isinstance(image, np.ndarray):
             img = image_array_to_pil_image(image)
@@ -104,8 +99,7 @@ def write_image(image: np.ndarray | PIL.Image.Image, fpath: Path):
             img = image
         else:
             raise TypeError(f"Unsupported image type: {type(image)}")
-        img.save(fpath)
-
+        img.save(fpath, compress_level=compress_level)
     except Exception as e:
         print(f"Error writing image {fpath}: {e}")
 

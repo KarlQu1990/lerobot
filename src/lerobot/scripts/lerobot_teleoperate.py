@@ -93,6 +93,7 @@ from lerobot.teleoperators import (  # noqa: F401
     so100_leader,
     so101_leader,
 )
+from lerobot.utils.import_utils import register_third_party_devices
 from lerobot.utils.robot_utils import busy_wait
 from lerobot.utils.utils import init_logging, move_cursor_up
 from lerobot.utils.visualization_utils import init_rerun, log_rerun_data
@@ -220,6 +221,7 @@ def teleoperate(cfg: TeleoperateConfig):
 
 
 def main():
+    register_third_party_devices()
     teleoperate()
 
 
