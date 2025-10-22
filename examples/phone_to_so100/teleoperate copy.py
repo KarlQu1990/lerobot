@@ -14,7 +14,6 @@
 # See the License for the specif
 
 import time
-from pathlib import Path
 
 from lerobot.model.kinematics import RobotKinematics
 from lerobot.processor import RobotAction, RobotObservation, RobotProcessorPipeline
@@ -22,14 +21,14 @@ from lerobot.processor.converters import (
     robot_action_observation_to_transition,
     transition_to_robot_action,
 )
-from lerobot.robots.sam01_follower.config_sam01_follower import SAM01FollowerConfig
-from lerobot.robots.sam01_follower.sam01_follower import SAM01Follower
+from lerobot.robots.so100_follower.config_so100_follower import SO100FollowerConfig
 from lerobot.robots.so100_follower.robot_kinematic_processor import (
     EEBoundsAndSafety,
     EEReferenceAndDelta,
     GripperVelocityToJoint,
     InverseKinematicsEEToJoints,
 )
+from lerobot.robots.so100_follower.so100_follower import SO100Follower
 from lerobot.teleoperators.phone.config_phone import PhoneConfig, PhoneOS
 from lerobot.teleoperators.phone.phone_processor import MapPhoneActionToRobotAction
 from lerobot.teleoperators.phone.teleop_phone import Phone
@@ -39,20 +38,18 @@ from lerobot.utils.visualization_utils import init_rerun, log_rerun_data
 FPS = 30
 
 # Initialize the robot and teleoperator
-calibration_dir = Path(__file__).parents[2] / ".cache/calibration/calib1"
-robot_config = SAM01FollowerConfig(
-    port="left_follower", id="robot_arm_follower_left", use_degrees=True, calibration_dir=calibration_dir
+robot_config = SO100FollowerConfig(
+    port="/dev/tty.usbmodem5A460814411", id="my_awesome_follower_arm", use_degrees=True
 )
 teleop_config = PhoneConfig(phone_os=PhoneOS.IOS)  # or PhoneOS.ANDROID
 
 # Initialize the robot and teleoperator
-robot = SAM01Follower(robot_config)
+robot = SO100Follower(robot_config)
 teleop_device = Phone(teleop_config)
 
 # NOTE: It is highly recommended to use the urdf in the SO-ARM100 repo: https://github.com/TheRobotStudio/SO-ARM100/blob/main/Simulation/SO101/so101_new_calib.urdf
-urdf_path = Path(__file__).parents[2] / "assets" / "sam_arm_left" / "urdf" / "sam_arm_left.urdf"
 kinematics_solver = RobotKinematics(
-    urdf_path=str(urdf_path),
+    urdf_path="./SO101/so101_new_calib.urdf",
     target_frame_name="gripper_frame_link",
     joint_names=list(robot.bus.motors.keys()),
 )

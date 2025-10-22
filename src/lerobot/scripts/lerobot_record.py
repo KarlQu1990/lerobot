@@ -367,18 +367,18 @@ def record_loop(
             if display_data:
                 log_rerun_data(observation=obs_processed, action=action_values)
 
-                dt_s = time.perf_counter() - start_loop_t
-                busy_wait(1 / fps - dt_s)
+            dt_s = time.perf_counter() - start_loop_t
+            busy_wait(1 / fps - dt_s)
 
-                timestamp = time.perf_counter() - start_episode_t
+            timestamp = time.perf_counter() - start_episode_t
 
-                if int(timestamp) > timestamp_int:
-                    prev_timestamp_int = timestamp_int
-                    timestamp_int = math.ceil(timestamp)
-                    pbar.update(timestamp_int - prev_timestamp_int)
+            if int(timestamp) > timestamp_int:
+                prev_timestamp_int = timestamp_int
+                timestamp_int = math.ceil(timestamp)
+                pbar.update(timestamp_int - prev_timestamp_int)
 
-            if timestamp_int < control_time_s:
-                pbar.update(1)
+        if timestamp_int < control_time_s:
+            pbar.update(1)
 
 
 @parser.wrap()
